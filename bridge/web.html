@@ -1,0 +1,45 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>纸间 · 数据网关</title>
+<style>body{margin:0;background:#f5f7f3;color:#203027;font:16px/1.65 system-ui,"Microsoft YaHei",sans-serif}main{max-width:720px;margin:auto;padding:24px}h1{font-size:27px;margin:0}h2{font-size:21px;margin:0 0 12px}.muted,small{color:#56655b}nav{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}button{min-height:44px;font:inherit;background:white;border:1px solid #bdcabd;color:inherit;border-radius:7px;padding:9px 15px;cursor:pointer}.primary,button.active{background:#2c553c;color:white;border-color:#2c553c}section{background:white;padding:20px;border:1px solid #dce3d9;border-radius:10px;margin-bottom:16px}label{display:block;margin:15px 0}input{display:block;width:100%;box-sizing:border-box;font:inherit;background:white;color:#203027;border:1px solid #bdcabd;border-radius:7px;padding:10px;min-height:44px;margin-top:6px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}[hidden]{display:none!important}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.6 system-ui}.help{font-size:14px;color:#56655b}#message{white-space:pre-wrap}@media(max-width:480px){main{padding:16px}.grid{grid-template-columns:1fr;gap:0}}</style>
+<main><small>PAPERDESK BRIDGE</small><h1>纸间 · 数据网关</h1><p class="muted">天气与 Codex 额度，汇集到桌面的一张纸。</p>
+<section id="login"><h2>连接本机网关</h2><label>网关设备令牌<input id="token" type="password" autocomplete="off"></label><p class="help">令牌保存在工程的 .local/gateway.json；同时填入设备的“天气与账号”设置。</p><button id="unlock" class="primary">解锁配置</button></section>
+<div id="settings" hidden><nav><button data-tab="overview" class="active">状态</button><button data-tab="weather">天气</button><button data-tab="codex">Codex</button></nav>
+<section data-panel="overview"><h2>同步状态</h2><pre id="summary">正在读取…</pre><button id="refresh">请求同步</button><p class="help">Codex 每5分钟读取，和风天气缓存30分钟。手动同步也遵守天气缓存时间。</p></section>
+<section data-panel="weather" hidden><h2>和风天气</h2><label>专属 API Host<input id="host" maxlength="120" placeholder="xxxxx.qweatherapi.com"></label><p class="help">Host 在 <a href="https://console.qweather.com/setting" target="_blank" rel="noopener">和风控制台 → 设置</a> 中查看，复制专属域名即可，不要带 https:// 或 /v7/... 路径。</p><label>API Key<input id="key" type="password" maxlength="256" autocomplete="new-password" placeholder="留空保留已保存凭据"></label><div class="grid"><label>显示城市名称<input id="city" value="上海" maxlength="24"></label><label>Location ID 或 经度,纬度<input id="location" value="101020100" maxlength="64"></label></div><p class="help">接入城市版 v7 实况与三日预报，使用 API Key 认证；需账号已开通对应接口。免费额度以和风控制台为准。</p></section>
+<section data-panel="codex" hidden><h2>Codex 当前登录账号</h2><p>由本机 codex app-server 的只读账号接口读取额度，使用电脑已登录的账号。</p><p>不需要填写 OpenAI API Key，不会发送模型请求。服务只返回实际存在的额度窗口和重置时间。</p><pre id="quota_status"></pre><p class="help">读取失败会保留上次有效额度，并标明缓存。若提示未登录，请先在本机 Codex 登录后再同步。</p></section>
+<button id="save" class="primary">保存配置</button></div><p id="message" role="status"></p></main>
+<script>
+const el=id=>document.getElementById(id);let token='';
+function message(t){el('message').textContent=t;}
+async function request(path,options={}){let r=await fetch(path,{...options,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',...options.headers}});let j=await r.json();if(!r.ok)throw Error(j.error||'请求失败');return j;}
+function timestamp(n){return n?new Date(n*1000).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'尚未更新';}
+async function sync(){
+  try{
+    let s=await request('/v1/snapshot');
+    el('summary').textContent='网关同步于：'+timestamp(s.generated_at)
+      +'\n天气：'+(s.weather.ok?(s.weather.city+' '+s.weather.text+' '+s.weather.temp+'°C'+(s.weather.stale?'（缓存）':'')+'\n天气取得于：'+timestamp(s.weather.updated_at)):s.weather.error)
+      +'\nCodex：'+(s.codex.ok?(s.codex.stale?'缓存数据':'已取得额度'):s.codex.error);
+    el('quota_status').textContent=s.codex.ok?
+      '额度取得于：'+timestamp(s.codex.updated_at)+'\n\n'+s.codex.windows.map(w=>w.label+' · 已用 '+w.used+'% / 剩余 '+w.remaining+'%\n重置：'+timestamp(w.resets_at)).join('\n\n')+(s.codex.stale?'\n\n读取失败，显示上次缓存：'+s.codex.error:''):s.codex.error;
+  }catch(e){message(e.message);}
+}
+el('unlock').onclick=async()=>{
+  token=el('token').value.trim();
+  try{
+    let c=await request('/v1/config');
+    for(let id of ['host','city','location'])el(id).value=c.weather[id];
+    el('key').placeholder=c.weather.key_set?'已保存，留空保留':'填写API Key';
+    el('login').hidden=true;el('settings').hidden=false;await sync();message('已连接网关');
+  }catch(e){message(e.message);}
+};
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('[data-panel]').forEach(x=>x.hidden=x.dataset.panel!==b.dataset.tab);});
+el('save').onclick=async()=>{
+  el('save').disabled=true;
+  try{
+    let c={weather:{}};for(let id of['host','key','city','location'])c.weather[id]=el(id).value;
+    await request('/v1/config',{method:'POST',body:JSON.stringify(c)});el('key').value='';
+    message('配置已保存，已请求同步；请稍后查看状态。');
+  }catch(e){message(e.message);}finally{el('save').disabled=false;}
+};
+el('refresh').onclick=async()=>{try{await request('/v1/refresh',{method:'POST',body:'{}'});message('已请求后台同步，天气缓存时间继续生效。');}catch(e){message(e.message);}};
+setInterval(()=>{if(token&&!el('settings').hidden)sync();},15000);
+</script></html>

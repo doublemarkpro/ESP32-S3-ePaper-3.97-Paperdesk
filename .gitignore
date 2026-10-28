@@ -1,0 +1,15 @@
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
+.local/
+backups/
+assets/fonts/*.ttf
+vendor/waveshare-reference/
+__pycache__/
+*.pyc
+output/
+*.log
+.env
+.env.*
+*.pem
+*.key

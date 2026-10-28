@@ -1,0 +1,59 @@
+# 实现结构
+
+## 数据路径
+
+```text
+SHTC3 ──I²C──┐
+PCF85063 ────┤  ESP32-S3 ──SPI── 800×480墨水屏（竖屏480×800）
+三向拨轮 ────┘     │
+                  │ Wi-Fi / HTTP，使用网关令牌
+                  ▼
+             电脑 Paperdesk 网关
+                  ├── 和风天气 HTTPS API：实况 + 三日预报
+                  └── 本机 Codex app-server：只读账号额度
+```
+
+设备网页负责网络、网关连接、显示偏好和校时；电脑网页负责天气凭据与服务状态。天气API凭据保留在电脑上，Codex登录状态不复制到设备。0.2.0不再包含订单与快递路径。
+
+## 界面与绘图
+
+首页集中显示日期时间、板载温湿度、天气和Codex额度。天气、Codex有独立详情页；设置通过长按进入，默认页只能选三个内容页。
+
+画布为48000字节的1位黑白位图，逻辑480×800转换为面板原生800×480。中文字库由Noto Sans SC离线生成，设计字号与字格尺寸分开：字格包含完整上伸部和下伸部，避免底部笔画裁切。天气图标使用有限的纯黑白形状，按可见像素边界居中；文字与数字以实际字形边界对齐。
+
+首页不显示重复时间、IP、调试文案或常驻操作说明。配网信息放在设置中，错误状态与缓存时间保持可见。
+
+## 文件与职责
+
+| 文件 | 职责 |
+| --- | --- |
+| `firmware/main/app.cpp` | 主循环、页面状态、拨轮事件、定期刷新 |
+| `firmware/main/board.cpp` | I²C、温湿度CRC检查、RTC、按键去抖和长按 |
+| `firmware/main/render.cpp` | 黑白画布、位图文字、首页及详情和设置布局 |
+| `firmware/main/weather_icons.h` | 天气图标、代码映射与居中绘制 |
+| `firmware/main/network.cpp` | NVS、AP/STA、NTP、设备HTTP服务与网关拉取 |
+| `firmware/main/web.html` | 内嵌设备配置页面 |
+| `bridge/server.py` | Python标准库网关、上游缓存、鉴权、统一快照 |
+| `bridge/web.html` | 网关配置页面 |
+| `tools/device.py` | 以本地指定序列号精确匹配设备、烧录和串口日志 |
+| `tools/render_preview.py` | 编译实际绘图代码，生成原生分辨率预览 |
+
+## 接口
+
+设备：`GET /` 显示网页，`GET /api/state` 返回状态；`GET/POST /api/config` 需 `X-Paperdesk-Token` 管理码。读取配置时不返回已保存密码或网关令牌，只返回是否已保存。
+
+网关：`GET /` 显示网页；`GET /v1/snapshot` 返回 `schema: 1` 的天气及Codex快照；`GET/POST /v1/config` 读取/更新配置；`POST /v1/refresh` 请求后台同步。所有 `/v1/` 接口需 `Authorization: Bearer <token>`。读取配置不回传已保存的API Key或网关令牌。
+
+上游更新时间与网关快照生成时间分开保存。上游失败时可保留旧值，但带 `stale` 和错误描述；不能仅因设备成功拉取快照就将上游缓存称为最新数据。天气快照包含实况及预报的图标代码，设备根据代码选取图形。
+
+## 硬件分配
+
+| 外设 | 引脚或地址 |
+| --- | --- |
+| 墨水屏 SPI3 | SCLK11、MOSI12、CS10、DC9、RESET46、BUSY3 |
+| I²C | SDA41、SCL42 |
+| SHTC3 | 地址0x70 |
+| PCF85063 | 地址0x51 |
+| 三向拨轮 | 上GPIO4、中GPIO5、下GPIO6，低电平有效 |
+
+NVS保存设备设置和间隔写入的快照缓存。字体直接嵌入Flash，不使用SD卡。`.local`、`backups`、生成效果图及构建目录均不进入源码仓库；本机设备序列号、账号凭据、设备照片和局域网配置也不需要提交。
