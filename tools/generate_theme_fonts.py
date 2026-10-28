@@ -27,6 +27,7 @@ SPECS = (
     ('theme_b_value', 'dm-serif-display', 'DMSerifDisplay-Regular.ttf', 68),
     ('weather_serif', 'dm-serif-display', 'DMSerifDisplay-Regular.ttf', 152),
     ('weather_sans', 'barlow-condensed', 'BarlowCondensed-Light.ttf', 160),
+    ('calendar_digits', 'barlow-condensed', 'BarlowCondensed-Regular.ttf', 44),
 )
 
 

@@ -2,6 +2,7 @@
 #include "epaper_port.h"
 #include "weather_icons.h"
 #include "weather_layout.h"
+#include "calendar.h"
 #include "esp_log.h"
 #include <algorithm>
 #include <climits>
@@ -24,14 +25,19 @@ extern const uint8_t theme_b_large[] asm("_binary_theme_b_large_bin_start");
 extern const uint8_t theme_b_value[] asm("_binary_theme_b_value_bin_start");
 extern const uint8_t weather_serif[] asm("_binary_weather_serif_bin_start");
 extern const uint8_t weather_sans[] asm("_binary_weather_sans_bin_start");
+extern const uint8_t calendar_digits[] asm("_binary_calendar_digits_bin_start");
+#ifdef PAPERDESK_HOST
+extern time_t preview_now;
+#endif
 namespace {
 constexpr int AClock=201, ALarge=202, AValue=203, BClock=204, BLarge=205, BValue=206;
 constexpr int WeatherSerif=207, WeatherSans=208;
+constexpr int CalendarDigits=209;
 uint8_t frame[48000];
 uint16_t u16(const uint8_t* p) { return p[0] | (p[1] << 8); }
 uint32_t u32(const uint8_t* p) { return u16(p) | (uint32_t(u16(p+2)) << 16); }
 const uint8_t* font(int size) {
-    switch(size) { case WeatherSerif:return weather_serif; case WeatherSans:return weather_sans; case AClock:return theme_a_clock; case ALarge:return theme_a_large; case AValue:return theme_a_value; case BClock:return theme_b_clock; case BLarge:return theme_b_large; case BValue:return theme_b_value; case 20:return f20; case 32:return f32; case 56:return f56; case 112:return f112; case 144:return f144; default:return f24; }
+    switch(size) { case CalendarDigits:return calendar_digits; case WeatherSerif:return weather_serif; case WeatherSans:return weather_sans; case AClock:return theme_a_clock; case ALarge:return theme_a_large; case AValue:return theme_a_value; case BClock:return theme_b_clock; case BLarge:return theme_b_large; case BValue:return theme_b_value; case 20:return f20; case 32:return f32; case 56:return f56; case 112:return f112; case 144:return f144; default:return f24; }
 }
 uint32_t decode(const char*& p) {
     uint8_t c=*p++; if(c<128)return c;
@@ -93,13 +99,13 @@ std::string fit(const std::string& s,int size,int limit) {
     while(*p){const char* start=p;decode(p);std::string next(start,p-start);if(width(result+next,size)>available)break;result+=next;}
     return result+"…";
 }
-void raw_text(int x,int y,const std::string& s,int size) {
+void raw_text(int x,int y,const std::string& s,int size,bool ink=true) {
     const uint8_t* f=font(size);int fs=u16(f),count=u16(f+2),stride=(fs+7)/8;const char* p=s.c_str();
     while(*p){auto g=glyph(f,decode(p));
         if(g){const uint8_t* bits=f+4+count*8+((g-f-4)/8)*fs*stride;
-            for(int yy=0;yy<fs;yy++)for(int xx=0;xx<fs;xx++)if(bits[yy*stride+xx/8]&(128>>(xx&7)))pixel(x+xx,y+yy);
+            for(int yy=0;yy<fs;yy++)for(int xx=0;xx<fs;xx++)if(bits[yy*stride+xx/8]&(128>>(xx&7)))pixel(x+xx,y+yy,ink);
             x+=u16(g+4);
-        }else{round_box(x,y,size-2,size-2,2,2);x+=size;}
+        }else{for(int yy=0;yy<size-2;yy++)for(int xx=0;xx<size-2;xx++)if(xx<2||yy<2||xx>=size-4||yy>=size-4)pixel(x+xx,y+yy,ink);x+=size;}
     }
 }
 void label(int x,int ink_top,const std::string& value,int size=24,int max_width=416) {
@@ -108,9 +114,9 @@ void label(int x,int ink_top,const std::string& value,int size=24,int max_width=
 void right(int edge,int ink_top,const std::string& s,int size=20,int max_width=416) {
     auto value=fit(s,size,max_width);auto b=measure(value,size);raw_text(edge-b.right,ink_top-b.top,value,size);
 }
-void in_box(int x,int y,int w,int h,const std::string& value,int size,bool align_left=false) {
+void in_box(int x,int y,int w,int h,const std::string& value,int size,bool align_left=false,bool ink=true) {
     auto s=fit(value,size,w);auto b=measure(s,size);
-    raw_text((align_left?x:x+(w-b.w())/2)-b.left,y+(h-b.h())/2-b.top,s,size);
+    raw_text((align_left?x:x+(w-b.w())/2)-b.left,y+(h-b.h())/2-b.top,s,size,ink);
 }
 void multiline(int x,int y,const std::string& s,int size=24,int rows=3,int w=416) {
     std::string row;const char* p=s.c_str();
@@ -147,10 +153,6 @@ const cJSON* home_bucket(const cJSON* windows) {
 }
 std::string quota_label(const cJSON* bucket) {
     std::string s=json_string(bucket,"label","额度");auto p=s.find("窗口");if(p!=std::string::npos)s.replace(p,6,"额度");return s;
-}
-void detail_footer(const std::string& name,int page,const std::string& hint="拨动切页 · 长按设置") {
-    fill(32,720,416,1);label(32,745,hint,20);label(32,770,name,20);
-    right(448,770,std::to_string(page+1)+" / 3",20);
 }
 void draw_home(const AppData& a,const cJSON* weather,const cJSON* codex,const cJSON* windows,
                bool weather_ok,bool quota_ok,bool weather_stale,bool quota_stale,time_t now) {
@@ -299,11 +301,64 @@ void draw_weather(const AppData& a,const cJSON* weather,bool available,bool stal
     if(available)in_box(32,734,416,28,std::string(stale?"缓存 · ":"和风天气 · ")+timestamp(json_int(weather,"updated_at"),stale?"%m/%d %H:%M":"%H:%M")+" 更新",20);
     in_box(32,768,416,28,"按下同步 · 长按设置",20);
 }
+void draw_calendar(const View& view,time_t now) {
+    namespace cal=paperdesk_calendar;
+    if(now<1704067200){
+        label(32,40,"月历",32);in_box(32,220,416,60,"请先校准日期",32);
+        centered_lines(32,340,416,70,"连接 Wi-Fi 自动校时，或在设备网页保存手机时间。",24);
+        in_box(32,760,416,30,"长按拨轮进入设置",20);return;
+    }
+    tm local={};localtime_r(&now,&local);
+    cal::Date today{local.tm_year+1900,local.tm_mon+1,local.tm_mday};
+    cal::Date month=cal::add_months(today,view.selection==1?1:0);
+    int rows=cal::month_rows(month.year,month.month),first=cal::weekday_monday0(month);
+    const char* week[]={"一","二","三","四","五","六","日"};
+    label(32,42,std::to_string(month.year)+"年",24,170);
+    number_unit(32,158,174,std::to_string(month.month),"月",WeatherSans);
+    label(32,224,view.selection==1?"下月":"本月",20);
+
+    char today_line[64];snprintf(today_line,sizeof(today_line),"今日 %02d/%02d · 星期%s",today.month,today.day,week[cal::weekday_monday0(today)]);
+    right(448,44,today_line,20,228);
+    auto lunar=cal::lunar(today);
+    if(lunar.valid){
+        right(448,84,"农历"+cal::lunar_month_name(lunar)+cal::lunar_day_name(lunar.day),24,228);
+        right(448,126,cal::ganzhi_year(lunar.year)+" · "+cal::zodiac(lunar.year)+"年",20,228);
+    }else{right(448,84,"农历暂无数据",24,228);right(448,126,"公历正常显示",20,228);}
+    auto next=cal::next_term(today);
+    right(448,168,"下一节气",20,228);
+    if(next.valid){char date[40];snprintf(date,sizeof(date)," · %d月%d日",next.date.month,next.date.day);right(448,202,std::string(next.name)+date,24,228);}
+    else right(448,202,"暂无节气数据",20,228);
+    fill(32,250,416,1);
+    for(int column=0;column<7;++column){int x=32+column*416/7,w=(column+1)*416/7-column*416/7;in_box(x,275,w,30,week[column],20);if(column>=5)fill(x+w/2-10,310,20,1);}
+
+    if(rows>0){
+        constexpr int grid_top=320,grid_height=414;
+        for(int day=1;day<=cal::days_in_month(month.year,month.month);++day){
+            int slot=first+day-1,row=slot/7,column=slot%7;
+            int x=32+column*416/7,w=(column+1)*416/7-column*416/7;
+            int cy=grid_top+(2*row+1)*grid_height/(2*rows);
+            bool selected=today.year==month.year&&today.month==month.month&&today.day==day;
+            if(selected){int chip_width=48,chip_left=x+(w-chip_width)/2;for(int yy=0;yy<42;yy++)for(int xx=0;xx<chip_width;xx++)if(inside_round(xx,yy,chip_width,42,7))pixel(chip_left+xx,cy-34+yy);}
+            in_box(x,cy-31,w,36,std::to_string(day),CalendarDigits,false,!selected);
+            cal::Date date{month.year,month.month,day};auto lunar_day=cal::lunar(date);auto term=cal::term_on(date);
+            const char* short_months[]={"","正","二","三","四","五","六","七","八","九","十","冬","腊"};
+            std::string month_label=lunar_day.valid?(lunar_day.leap?std::string("闰")+short_months[lunar_day.month]:std::string(short_months[lunar_day.month])+"月"):"--";
+            std::string secondary=term.valid?term.name:lunar_day.valid?(lunar_day.day==1?month_label:cal::lunar_day_name(lunar_day.day)):"--";
+            in_box(x,cy+12,w,26,secondary,20);
+        }
+    }
+    fill(32,751,416,1);in_box(32,764,416,30,"短按切换月份 · 长按设置",20);
+}
 } // namespace
 
 void draw_screen(const View& view,bool full) {
     AppData a;{std::lock_guard<std::mutex> lock(app_mutex);a=app;}
-    memset(frame,255,sizeof(frame));time_t now=time(nullptr);
+    memset(frame,255,sizeof(frame));
+#ifdef PAPERDESK_HOST
+    time_t now=preview_now;
+#else
+    time_t now=time(nullptr);
+#endif
     bool clock_ok=now>=1704067200;
     cJSON* snapshot=cJSON_Parse(a.snapshot.c_str());
     auto weather=cJSON_GetObjectItemCaseSensitive(snapshot,"weather");auto codex=cJSON_GetObjectItemCaseSensitive(snapshot,"codex");
@@ -313,20 +368,13 @@ void draw_screen(const View& view,bool full) {
     bool stale=!a.connected||!a.gateway_error.empty()||(clock_ok&&a.gateway_updated>0&&now-a.gateway_updated>900);
     bool weather_stale=stale||cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(weather,"stale"));
     bool quota_stale=stale||cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(codex,"stale"));
-    const char* pages[]={"桌面总览","天气","Codex"};
+    const char* pages[]={"桌面总览","天气","月历"};
     if(view.page==0){
         draw_home(a,weather,codex,windows,weather_ok,quota_ok,weather_stale,quota_stale,now);
     }else if(view.page==1){
         draw_weather(a,weather,weather_ok,weather_stale,now);
     }else if(view.page==2){
-        label(32,36,"Codex",32);right(448,44,clock_ok?timestamp(now,"%H:%M"):"--:--",20);
-        if(quota_ok){auto bucket=cJSON_GetArrayItem(windows,std::min(view.selection,cJSON_GetArraySize(windows)-1));int remaining=std::clamp(json_int(bucket,"remaining"),0,100);
-            label(32,150,quota_label(bucket),24);in_box(32,220,416,140,std::to_string(remaining)+"%",112,true);label(32,390,"剩余额度",24);
-            progress(32,449,416,14,remaining);
-            label(32,558,"下次重置 · 北京时间",20);label(32,599,timestamp(json_int(bucket,"resets_at")),32);
-            label(32,680,std::string(quota_stale?"缓存 · ":"更新于 ")+timestamp(json_int(codex,"updated_at")),20);
-        }else{in_box(32,180,416,64,"等待额度数据",32);multiline(32,300,json_string(codex,"error",a.gateway_error.c_str()),24,4);label(32,560,"长按拨轮进入设置",20);}
-        detail_footer("Codex",2,"按下切换窗口 · 长按设置");
+        draw_calendar(view,now);
     }else{
         label(32,36,view.details?"网络与配网":"设置",32);
         if(view.details){
@@ -340,7 +388,7 @@ void draw_screen(const View& view,bool full) {
             const char* labels[]={"网络与手机设置","首页风格","天气风格","开机默认页面","自动轮播","夜间暂停轮播","立即同步数据"};
             std::string values[]={"查看",a.config.home_style==1?"编辑式微衬线":"精密桌面钟",a.config.weather_style==1?"温差观测":"天气日报",pages[std::clamp(a.config.default_page,0,2)],a.config.rotation_minutes?"5分钟":"关闭",a.config.night?"开启":"关闭","请求"};
             for(int i=0;i<7;i++){int y=130+i*62;if(view.selection==i)round_box(24,y-13,432,56,8,2);label(40,y,labels[i],24,270);right(432,y+3,values[i],20,160);}
-            label(32,580,"管理码："+a.config.admin_token,24);label(32,628,"http://"+a.ip,20);label(32,680,"纸间 Paperdesk 0.4.0",20);label(32,751,"拨动选择 · 短按修改 · 长按回首页",20);
+            label(32,580,"管理码："+a.config.admin_token,24);label(32,628,"http://"+a.ip,20);label(32,680,"纸间 Paperdesk 0.5.0",20);label(32,751,"拨动选择 · 短按修改 · 长按回首页",20);
         }
     }
     cJSON_Delete(snapshot);epaper_timed_out=false;

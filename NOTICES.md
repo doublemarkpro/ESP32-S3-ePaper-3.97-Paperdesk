@@ -19,9 +19,9 @@
 
 字体版权声明：Copyright 2014–2021 Adobe，Reserved Font Name “Source”。字体按 SIL Open Font License 1.1 提供。完整许可随工程保存在 [assets/fonts/OFL.txt](assets/fonts/OFL.txt)。转换工具为 `tools/generate_fonts.py`；生成位图仍受字体许可适用条款约束。
 
-## 首页数字字体
+## 数字字体
 
-两套首页及天气页的数字字库由 `tools/generate_theme_fonts.py` 转换为 `firmware/main/theme_*.bin`、`weather_serif.bin` 和 `weather_sans.bin`。两种字体均按 SIL Open Font License 1.1 提供，生成的位图字库也保留适用的字体许可要求。
+首页、天气页及月历的数字字库由 `tools/generate_theme_fonts.py` 转换为 `firmware/main/theme_*.bin`、`weather_serif.bin`、`weather_sans.bin` 和 `calendar_digits.bin`。其中月历日数字库 `calendar_digits.bin` 使用Barlow Condensed Regular、44px设计字号。两种字体均按 SIL Open Font License 1.1 提供，生成的位图字库也保留适用的字体许可要求。
 
 | 风格 | 字体与来源 | 版权与完整许可 |
 | --- | --- | --- |
@@ -44,3 +44,11 @@
 ## 天气图标
 
 天气图形由本工程的几何绘图代码生成。和风天气返回的图标代码用于选择相应天气含义；未将图标服务的字体或SVG文件打包到固件中。对应生成工具与固件图标数据随源码保存。
+
+## 公历、农历与节气数据
+
+月历的日期对应关系与节气日期来自香港天文台官方 [公历与农历日期对照表（文字版本）](https://www.hko.gov.hk/tc/gts/time/conversion1_text.htm)，该入口提供1901–2100年的逐年对照表。本工程内置数据支持公历1901-01-01至2100-12-31，覆盖73,049日，包含2,475个农历月起点与4,800个节气，打包数组共29,100字节。
+
+`tools/generate_calendar_data.py` 提取历法事实数据，生成 `firmware/main/calendar_data.h`，供设备离线查询。具体来源、文件SHA256与生成记录保存在 [assets/calendar/source.json](assets/calendar/source.json)；该记录同时说明起始农历月的反推依据及独立核验方法。原始下载文件仅保存在本机 `.local/calendar-cache`。仓库没有把天文台网页文字、版式或标识打包为界面素材；第三方农历库仅用于独立核验，不作为固件构建或运行依赖。
+
+此处记录事实数据的出处，不将来源说明视为香港天文台授予的开源软件许可证，也不代表其认可本工程。项目未从这些数据推断法定假日或调休安排。
