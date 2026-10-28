@@ -5,6 +5,7 @@
 #include "calendar.h"
 #include "gallery.h"
 #include "gallery_image.h"
+#include "weight_data.h"
 #include "garmin.h"
 #include "esp_log.h"
 #include <algorithm>
@@ -481,6 +482,48 @@ void draw_garmin(const AppData& a,time_t now) {
     sync+=suffix;
     in_box(32,770,416,22,sync,20);
 }
+std::string weight_number(int grams,int unit,bool signed_delta=false){
+    if(grams==-1&&!signed_delta)return "--";
+    double value=paperdesk_weight::display_value(grams,unit);
+    if(std::abs(value)<0.05)value=0;
+    char out[32];snprintf(out,sizeof out,signed_delta&&value>0?"+%.1f":"%.1f",value);return out;
+}
+void draw_weight(const View& view,const AppData& a,time_t now){
+    namespace cal=paperdesk_calendar;auto data=paperdesk_garmin::weight_snapshot();
+    tm local={};localtime_r(&now,&local);cal::Date today{local.tm_year+1900,local.tm_mon+1,local.tm_mday};
+    if(!cal::valid(today)||now<1704067200){label(32,40,"体重月历",32);in_box(32,300,416,50,"请先校准日期",32);return;}
+    cal::Date month=cal::add_months(today,view.selection?-1:0);
+    const int unit=a.config.weight_unit;const char* unit_name=unit?"斤":"kg";
+    label(32,32,"GARMIN",20);right(448,32,timestamp(now,"%Y.%m.%d"),20);label(32,71,"体重月历",32);
+    if(data.cached||!a.connected)right(448,83,"留存数据",20,130);
+    fill(32,119,416,1);label(32,137,"最近体重",20);right(448,137,"自 "+a.config.weight_start+" 起",20,220);
+    number_unit(32,198,205,weight_number(data.latest_grams,unit),unit_name,AValue,false,20);
+    bool baseline=data.baseline_date==a.config.weight_start&&data.baseline_grams>=0&&data.latest_grams>=0;
+    number_unit(248,198,200,baseline?weight_number(data.latest_grams-data.baseline_grams,unit,true):"--",unit_name,AValue,true,20);
+    label(32,238,data.latest_date.empty()?(data.latest_grams<0?"暂无记录":"日期未知"):data.latest_date+" 记录",20,210);
+    right(448,238,baseline?"起点 "+weight_number(data.baseline_grams,unit):data.baseline_date!=a.config.weight_start?"起点待同步":"起点无记录",20,190);
+    fill(32,267,416,1);
+    char title[48];snprintf(title,sizeof title,"%d年%d月",month.year,month.month);in_box(32,276,416,36,title,24);
+    label(32,283,view.selection?"上月":"本月",20,90);right(448,283,"短按切换",20,100);
+    const char* week[]={"日","一","二","三","四","五","六"};
+    for(int col=0;col<7;++col){int x=32+col*416/7,w=(col+1)*416/7-col*416/7;in_box(x,319,w,24,week[col],20);}
+    int first=(cal::weekday_monday0(month)+1)%7;int count=cal::days_in_month(month.year,month.month);int rows=(first+count+6)/7;
+    constexpr int top=351,height=390;
+    for(int day=1;day<=count;++day){
+        int index=first+day-1,row=index/7,col=index%7,x=32+col*416/7,w=(col+1)*416/7-col*416/7;
+        int y=top+row*height/rows,h=(row+1)*height/rows-row*height/rows;
+        bool selected=today.year==month.year&&today.month==month.month&&today.day==day;
+        if(selected)round_box(x+2,y,w-4,h-2,6,2);
+        char date[40];snprintf(date,sizeof date,"%04d-%02d-%02d",month.year,month.month,day);
+        tm prev={};prev.tm_year=month.year-1900;prev.tm_mon=month.month-1;prev.tm_mday=day-1;prev.tm_hour=12;time_t epoch=mktime(&prev);localtime_r(&epoch,&prev);
+        char prior[16];strftime(prior,sizeof prior,"%Y-%m-%d",&prev);
+        int value=paperdesk_weight::on(data.days,date),before=paperdesk_weight::on(data.days,prior);
+        in_box(x,y+2,w,20,std::to_string(day),20);
+        in_box(x,y+23,w,19,value<0?"--":weight_number(value,unit),20);
+        in_box(x,y+43,w,19,value<0||before<0?"--":weight_number(value-before,unit,true),20);
+    }
+    fill(32,750,416,1);in_box(32,760,416,28,std::string("单位 ")+(unit?"斤":"kg")+" · 变化较前一日",20);
+}
 } // namespace
 
 void draw_screen(const View& view,bool full) {
@@ -500,7 +543,7 @@ void draw_screen(const View& view,bool full) {
     bool stale=!a.connected||!a.gateway_error.empty()||(clock_ok&&a.gateway_updated>0&&now-a.gateway_updated>900);
     bool weather_stale=stale||cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(weather,"stale"));
     bool quota_stale=stale||cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(codex,"stale"));
-    const char* pages[]={"桌面总览","天气","月历","画廊","佳明简报"};
+    const char* pages[]={"桌面总览","天气","月历","画廊","佳明简报","体重月历"};
     if(view.page==0){
         draw_home(a,weather,codex,windows,weather_ok,quota_ok,weather_stale,quota_stale,now);
     }else if(view.page==1){
@@ -511,6 +554,8 @@ void draw_screen(const View& view,bool full) {
         draw_gallery(a);
     }else if(view.page==GarminPage){
         draw_garmin(a,now);
+    }else if(view.page==WeightPage){
+        draw_weight(view,a,now);
     }else{
         label(32,36,view.details?"网络与配网":"设置",32);
         if(view.details){
@@ -521,10 +566,10 @@ void draw_screen(const View& view,bool full) {
             multiline(32,595,a.gateway_error.empty()?"电脑网关已连接":a.gateway_error,20,2);
             label(32,745,"短按返回设置 · 长按回首页",20);
         }else{
-            const char* labels[]={"网络与手机设置","首页风格","天气风格","开机默认页面","自动轮播","夜间暂停轮播","立即同步数据"};
-            std::string values[]={"查看",a.config.home_style==1?"编辑式微衬线":"精密桌面钟",a.config.weather_style==1?"温差观测":"天气日报",pages[std::clamp(a.config.default_page,0,ContentPageCount-1)],a.config.rotation_minutes?"5分钟":"关闭",a.config.night?"开启":"关闭","请求"};
-            for(int i=0;i<7;i++){int y=130+i*62;if(view.selection==i)round_box(24,y-13,432,56,8,2);label(40,y,labels[i],24,270);right(432,y+3,values[i],20,160);}
-            label(32,580,"管理码："+a.config.admin_token,24);label(32,628,"http://"+a.ip,20);label(32,680,"纸间 Paperdesk 0.7.0",20);label(32,751,"拨动选择 · 短按修改 · 长按回首页",20);
+            const char* labels[]={"网络与手机设置","首页风格","天气风格","开机默认页面","自动轮播","夜间暂停轮播","体重单位","立即同步数据"};
+            std::string values[]={"查看",a.config.home_style==1?"编辑式微衬线":"精密桌面钟",a.config.weather_style==1?"温差观测":"天气日报",pages[std::clamp(a.config.default_page,0,ContentPageCount-1)],a.config.rotation_minutes?"5分钟":"关闭",a.config.night?"开启":"关闭",a.config.weight_unit?"斤":"公斤","请求"};
+            for(int i=0;i<8;i++){int y=125+i*54;if(view.selection==i)round_box(24,y-10,432,49,8,2);label(40,y,labels[i],24,270);right(432,y+3,values[i],20,160);}
+            label(32,580,"管理码："+a.config.admin_token,24);label(32,628,"http://"+a.ip,20);label(32,680,"纸间 Paperdesk 0.8.0",20);label(32,751,"拨动选择 · 短按修改 · 长按回首页",20);
         }
     }
     cJSON_Delete(snapshot);epaper_timed_out=false;

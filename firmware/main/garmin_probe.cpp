@@ -1,6 +1,7 @@
 #include "garmin_probe.h"
 #include "garmin.h"
 #include "garmin_data.h"
+#include "weight_data.h"
 #include "paperdesk.h"
 
 #include "cJSON.h"
@@ -70,6 +71,7 @@ std::mutex state_mutex;
 State state;
 struct Service {
     paperdesk_garmin::Snapshot current;
+    paperdesk_garmin::WeightSnapshot weight;
     bool started = false, busy = false, requested = false;
     bool reauth = false, backoff = false, persist_pending = false;
     int64_t next_due = 0, last_request = 0;
@@ -363,6 +365,38 @@ bool load_summary(paperdesk_garmin::Snapshot& value) {
     return true;
 }
 
+bool save_weight(const paperdesk_garmin::WeightSnapshot& value) {
+    Json j(cJSON_CreateObject(),cJSON_Delete);if(!j)return false;
+    cJSON_AddStringToObject(j.get(),"baseline_date",value.baseline_date.c_str());
+    cJSON_AddStringToObject(j.get(),"latest_date",value.latest_date.c_str());
+    cJSON_AddNumberToObject(j.get(),"baseline_grams",value.baseline_grams);
+    cJSON_AddNumberToObject(j.get(),"latest_grams",value.latest_grams);
+    cJSON_AddNumberToObject(j.get(),"fetched_at",double(value.fetched_at));
+    auto rows=cJSON_AddArrayToObject(j.get(),"days");
+    for(const auto&d:value.days){auto row=cJSON_CreateObject();cJSON_AddStringToObject(row,"calendarDate",d.date.c_str());cJSON_AddNumberToObject(row,"weight",d.grams);cJSON_AddNumberToObject(row,"timestampGMT",double(d.timestamp));cJSON_AddItemToArray(rows,row);}
+    char* body=cJSON_PrintUnformatted(j.get());if(!body)return false;
+    nvs_handle_t h;bool ok=nvs_open_from_partition("storage","garmin",NVS_READWRITE,&h)==ESP_OK;
+    if(ok){ok=nvs_set_blob(h,"weights",body,strlen(body)+1)==ESP_OK&&nvs_commit(h)==ESP_OK;nvs_close(h);}
+    cJSON_free(body);return ok;
+}
+bool load_weight(paperdesk_garmin::WeightSnapshot& value) {
+    nvs_handle_t h;if(nvs_open_from_partition("storage","garmin",NVS_READONLY,&h)!=ESP_OK)return false;
+    size_t n=0;bool ok=nvs_get_blob(h,"weights",nullptr,&n)==ESP_OK&&n>0&&n<16384;std::string body;
+    if(ok){body.resize(n);ok=nvs_get_blob(h,"weights",body.data(),&n)==ESP_OK;}nvs_close(h);if(!ok)return false;
+    Json j(cJSON_ParseWithLength(body.data(),body.size()),cJSON_Delete);if(!j)return false;
+    auto baseline=field(j.get(),"baseline_date"),latest=field(j.get(),"latest_date");
+    if(!cJSON_IsString(baseline)||!date_valid(baseline->valuestring)||!cJSON_IsString(latest))return false;
+    value.baseline_date=baseline->valuestring;value.latest_date=latest->valuestring;
+    value.baseline_grams=paperdesk_weight::grams(field(j.get(),"baseline_grams"));
+    value.latest_grams=paperdesk_weight::grams(field(j.get(),"latest_grams"));
+    value.fetched_at=cloud_time(field(j.get(),"fetched_at"));if(!value.fetched_at)return false;
+    Json wrapper(cJSON_CreateObject(),cJSON_Delete);auto rows=cJSON_GetObjectItemCaseSensitive(j.get(),"days");
+    if(!cJSON_IsArray(rows))return false;
+    cJSON_AddItemToObject(wrapper.get(),"dateWeightList",cJSON_Duplicate(rows,true));
+    if(!paperdesk_weight::parse_range(wrapper.get(),value.days))return false;
+    value.ready=true;value.cached=true;value.status="已载入体重缓存";return true;
+}
+
 const char* request_failure(const Check& check) {
     if (check.status == 401 || check.status == 403) return "佳明授权失效，请重新授权";
     if (check.status == 429) return "佳明请求受限，30分钟后重试";
@@ -371,18 +405,22 @@ const char* request_failure(const Check& check) {
 
 struct SyncResult {
     paperdesk_garmin::Snapshot value;
+    paperdesk_garmin::WeightSnapshot weight;
+    bool weight_ok=false;
     bool summary_ok = false, failed = false, reauth = false;
 };
 
 SyncResult synchronize(Credentials credentials, const paperdesk_garmin::Snapshot& previous) {
     SyncResult out;
     out.value = previous;
+    {std::lock_guard<std::mutex> lock(state_mutex);out.weight=service.weight;}
     out.value.configured = true;
     out.value.busy = true;
     out.value.attempt_at = time(nullptr);
     auto fail = [&](const char* reason, bool reauth = false) {
         out.failed = true; out.reauth = reauth;
         out.value.status = reason; out.value.cached = out.value.ready;
+        out.weight.cached=out.weight.ready;out.weight.status=reason;
     };
     const int64_t deadline = esp_timer_get_time() + 180000000;
     bool pending;
@@ -460,6 +498,34 @@ SyncResult synchronize(Credentials credentials, const paperdesk_garmin::Snapshot
     else if (!out.reauth && out.value.status.empty()) out.value.status = "部分更新失败，30分钟后重试";
     // Mark mixed-age or incomplete data so the UI does not imply every field is current.
     out.value.cached = out.value.cached || partial || out.failed;
+    if(!out.failed&&!out.reauth){
+        std::string baseline;{std::lock_guard<std::mutex> lock(app_mutex);baseline=app.config.weight_start;}
+        tm begin=local;begin.tm_mon-=1;begin.tm_mday=0;begin.tm_hour=12;begin.tm_min=0;begin.tm_sec=0;
+        time_t begin_epoch=mktime(&begin);localtime_r(&begin_epoch,&begin);char start[16];strftime(start,sizeof start,"%Y-%m-%d",&begin);
+        std::string range=std::string(ApiHost)+"/weight-service/weight/dateRange?startDate="+start+"&endDate="+date;
+        Check range_check;auto history=request(range,"Bearer "+credentials.access,nullptr,deadline,range_check,MaxHealthResponse);
+        paperdesk_garmin::WeightSnapshot candidate;candidate.baseline_date=baseline;
+        bool valid=history&&paperdesk_weight::parse_range(history.get(),candidate.days);
+        history.reset();
+        Check latest_check;Json latest(nullptr,cJSON_Delete);
+        if(valid)latest=request(std::string(ApiHost)+"/weight-service/weight/latest?date="+date+"&ignorePriority=true","Bearer "+credentials.access,nullptr,deadline,latest_check);
+        if(latest){candidate.latest_grams=paperdesk_weight::grams(field(latest.get(),"weight"));time_t stamp=cloud_time(field(latest.get(),"timestampGMT"));if(stamp){tm t{};localtime_r(&stamp,&t);char label[16];strftime(label,sizeof label,"%Y-%m-%d",&t);candidate.latest_date=label;}}
+        bool latest_valid=bool(latest)||latest_check.status==204||latest_check.status==404;
+        latest.reset();
+        Check baseline_check;Json base(nullptr,cJSON_Delete);
+        if(valid&&latest_valid)base=request(std::string(ApiHost)+"/weight-service/weight/dateRange?startDate="+baseline+"&endDate="+baseline,"Bearer "+credentials.access,nullptr,deadline,baseline_check,MaxHealthResponse);
+        std::vector<paperdesk_garmin::WeightDay> base_days;
+        bool base_valid=base&&paperdesk_weight::parse_range(base.get(),base_days);
+        if(base_valid)candidate.baseline_grams=paperdesk_weight::on(base_days,baseline);
+        if(valid&&base_valid&&latest_valid){
+            candidate.ready=true;candidate.cached=false;candidate.fetched_at=time(nullptr);candidate.status="已同步体重";
+            out.weight=std::move(candidate);out.weight_ok=true;
+        }else{out.weight.cached=out.weight.ready;out.weight.status="体重更新失败 · 保留缓存";}
+        for(const Check* c:{&range_check,&latest_check,&baseline_check}){
+            if(c->status==401||c->status==403){fail("佳明授权失效，请重新授权",true);break;}
+            if(c->status==429){fail(request_failure(*c));break;}
+        }
+    }
     return out;
 }
 
@@ -476,7 +542,7 @@ void service_task(void*) {
             bool eligible = connected && time(nullptr) >= 1704067200 && !service.reauth &&
                 !state.busy && !service.busy && !state.credentials.refresh.empty() &&
                 !(state.refreshed && !state.saved && !service.persist_pending);
-            bool due = now >= service.next_due || (service.requested && !service.backoff);
+            bool due = now >= service.next_due || (service.requested && !service.backoff && (!service.last_request||now-service.last_request>=60000000));
             if (eligible && due) {
                 service.requested = false; service.busy = true; service.last_request = now;
                 service.current.busy = true; service.current.configured = true;
@@ -492,12 +558,13 @@ void service_task(void*) {
             dirty = true;
             SyncResult result = synchronize(std::move(credentials), previous);
             result.value.busy = false;
+            if(result.weight_ok&&!save_weight(result.weight))result.weight.status="体重已更新 · 缓存保存失败";
             if (result.summary_ok && !save_summary(result.value) && !result.failed && !result.reauth) {
                 result.value.status = "简报已更新 · 本次未能保存";
             }
             {
                 std::lock_guard<std::mutex> lock(state_mutex);
-                service.current = std::move(result.value); service.busy = false;
+                service.current = std::move(result.value);service.weight=std::move(result.weight); service.busy = false;
                 service.reauth = result.reauth; service.backoff = result.failed;
                 service.next_due = esp_timer_get_time() + SyncIntervalUs;
             }
@@ -657,10 +724,12 @@ void start() {
     bool configured = load_credentials(credentials);
     Snapshot cached;
     load_summary(cached);
+    WeightSnapshot cached_weight;load_weight(cached_weight);
     std::lock_guard<std::mutex> lock(state_mutex);
     if (service.started) return;
     service.started = true;
     service.current = std::move(cached);
+    service.weight=std::move(cached_weight);
     if (!state.busy && state.credentials.refresh.empty() && configured) {
         state.credentials = std::move(credentials); state.saved = true;
     }
@@ -678,12 +747,23 @@ void request_sync() {
     if (service.busy || state.busy || !service.current.configured || service.reauth ||
         (service.backoff && now < service.next_due) ||
         (service.last_request && now - service.last_request < 60000000)) return;
-    service.last_request = now; service.requested = true;
+    service.requested = true;
 }
 
 Snapshot snapshot() {
     std::lock_guard<std::mutex> lock(state_mutex);
     return service.current;
+}
+WeightSnapshot weight_snapshot(){std::lock_guard<std::mutex> lock(state_mutex);return service.weight;}
+void request_weight_refresh(){std::lock_guard<std::mutex> lock(state_mutex);service.requested=true;}
+char* weight_status_json(){
+    auto w=weight_snapshot();Json j(cJSON_CreateObject(),cJSON_Delete);if(!j)return nullptr;
+    cJSON_AddBoolToObject(j.get(),"ready",w.ready);cJSON_AddBoolToObject(j.get(),"cached",w.cached);
+    cJSON_AddStringToObject(j.get(),"status",w.status.c_str());cJSON_AddStringToObject(j.get(),"baseline_date",w.baseline_date.c_str());
+    cJSON_AddStringToObject(j.get(),"latest_date",w.latest_date.c_str());cJSON_AddNumberToObject(j.get(),"latest_grams",w.latest_grams);
+    cJSON_AddNumberToObject(j.get(),"baseline_grams",w.baseline_grams);cJSON_AddNumberToObject(j.get(),"fetched_at",double(w.fetched_at));
+    auto days=cJSON_AddArrayToObject(j.get(),"days");for(const auto& d:w.days){auto row=cJSON_CreateObject();cJSON_AddStringToObject(row,"date",d.date.c_str());cJSON_AddNumberToObject(row,"grams",d.grams);cJSON_AddItemToArray(days,row);}
+    return cJSON_PrintUnformatted(j.get());
 }
 
 char* status_json() {

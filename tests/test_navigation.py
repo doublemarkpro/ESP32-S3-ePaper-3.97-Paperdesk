@@ -59,7 +59,7 @@ int main(int argc,char**argv){
             rotate(view);assert(view.page==SettingsPage);
             handle_key(view,Back);assert(view.page==HomePage);
         }
-        View settings{SettingsPage};settings.selection=6;handle_key(settings,Down);
+        View settings{SettingsPage};settings.selection=7;handle_key(settings,Down);
         assert(settings.selection==0&&settings.page==SettingsPage);
         settings.details=true;handle_key(settings,Up);assert(settings.selection==0&&settings.page==SettingsPage);
     }else if(test=="rotation_gates"){
@@ -74,6 +74,7 @@ int main(int argc,char**argv){
         assert(requests==1&&!force_sync&&gallery.page==GalleryPage);
         View garmin{GarminPage};handle_key(garmin,Press);
         assert(garmin_requests==1&&!force_sync&&garmin.page==GarminPage);
+        View weight{WeightPage};handle_key(weight,Press);assert(weight.selection==1);handle_key(weight,Press);assert(weight.selection==0);
         View calendar{CalendarPage};handle_key(calendar,Press);assert(calendar.selection==1&&calendar_full_refresh);
         handle_key(calendar,Press);assert(calendar.selection==0&&!force_sync);
         View weather{WeatherPage};handle_key(weather,Press);assert(force_sync);
@@ -81,6 +82,10 @@ int main(int argc,char**argv){
         View settings{SettingsPage};settings.selection=3;app.config.default_page=HomePage;
         for(int i=1;i<=ContentPageCount;++i){handle_key(settings,Press);assert(app.config.default_page==i%ContentPageCount);}
         assert(saves==ContentPageCount);
+    }else if(test=="weight_unit"){
+        View settings{SettingsPage};settings.selection=6;app.config.weight_unit=0;
+        handle_key(settings,Press);assert(app.config.weight_unit==1&&saves==1);
+        handle_key(settings,Press);assert(app.config.weight_unit==0&&saves==2);
     }else if(test=="gallery_refresh"){
         View view{CalendarPage};handle_key(view,Down);assert(view.page==GalleryPage&&paperdesk_gallery::full_refresh);
         paperdesk_gallery::full_refresh=false;view.page=CalendarPage;rotate(view);
@@ -136,6 +141,9 @@ class NavigationTests(unittest.TestCase):
 
     def test_entering_gallery_requests_a_full_refresh(self):
         self.run_case('gallery_refresh')
+
+    def test_device_setting_switches_weight_unit(self):
+        self.run_case('weight_unit')
 
 
 if __name__ == '__main__':

@@ -20,6 +20,8 @@ Snapshot snapshot(bool){return preview;}
 namespace paperdesk_garmin {
 Snapshot preview;
 Snapshot snapshot(){return preview;}
+WeightSnapshot weight_preview;
+WeightSnapshot weight_snapshot(){return weight_preview;}
 }
 static time_t at_date(int year,int month,int day){tm t={};t.tm_year=year-1900;t.tm_mon=month-1;t.tm_mday=day;t.tm_hour=11;t.tm_min=48;t.tm_isdst=-1;return mktime(&t);}
 const char* json_string(const cJSON*o,const char*k,const char*fallback){auto v=cJSON_GetObjectItemCaseSensitive(o,k);return cJSON_IsString(v)?v->valuestring:fallback;}
@@ -42,6 +44,12 @@ int main(int argc,char**argv){
         }
     }
     for(int style=0;style<2;style++){app.config.home_style=style;View v;output=std::string(argv[1])+"/home-style-"+(style?"b":"a")+".pbm";draw_screen(v,true);}
+    {View v;v.page=WeightPage;auto& w=paperdesk_garmin::weight_preview;w.ready=true;w.baseline_date="2026-05-28";w.baseline_grams=80000;w.latest_grams=72400;w.latest_date="2026-10-28";
+        for(int day=1;day<=28;++day){char date[16];snprintf(date,sizeof date,"2026-10-%02d",day);if(day!=14&&day!=18)w.days.push_back({date,78000-day*200,preview_now});}
+        output=std::string(argv[1])+"/weight-kg.pbm";draw_screen(v,true);app.config.weight_unit=1;output=std::string(argv[1])+"/weight-jin.pbm";draw_screen(v,true);app.config.weight_unit=0;
+        v.selection=1;output=std::string(argv[1])+"/weight-previous.pbm";draw_screen(v,true);
+        preview_now=at_date(2026,5,15);v.selection=0;output=std::string(argv[1])+"/weight-six-rows.pbm";draw_screen(v,true);preview_now=at_date(2026,10,28);w={};
+    }
     {View v;v.page=GarminPage;auto& g=paperdesk_garmin::preview;
         auto render=[&](const char* name){output=std::string(argv[1])+"/garmin-"+name+".pbm";draw_screen(v,true);};
         render("unconfigured");g.configured=true;g.busy=true;g.status="正在读取云端数据";render("loading");
