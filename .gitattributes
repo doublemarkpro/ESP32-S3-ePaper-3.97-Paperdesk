@@ -1,3 +1,5 @@
 * text=auto eol=lf
 *.bin binary
 *.png binary
+# Preserve pinned upstream license bytes for the font source checksum checks.
+assets/fonts/*/OFL.txt -text whitespace=-blank-at-eol,cr-at-eol

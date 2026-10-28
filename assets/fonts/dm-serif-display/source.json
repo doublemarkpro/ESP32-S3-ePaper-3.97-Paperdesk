@@ -1,0 +1,17 @@
+{
+  "repository": "https://github.com/google/fonts",
+  "commit": "5bdc59521ab95d387c82a1543277fddab4aa7a8b",
+  "license": "SIL Open Font License 1.1",
+  "files": [
+    {
+      "file": "DMSerifDisplay-Regular.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/5bdc59521ab95d387c82a1543277fddab4aa7a8b/ofl/dmserifdisplay/DMSerifDisplay-Regular.ttf",
+      "sha256": "8cc3643535edf039aa5d95440a8542735e9197e4f4b8d9303e980fefbf5ab616"
+    },
+    {
+      "file": "OFL.txt",
+      "url": "https://raw.githubusercontent.com/google/fonts/5bdc59521ab95d387c82a1543277fddab4aa7a8b/ofl/dmserifdisplay/OFL.txt",
+      "sha256": "a3e5cdd67d4571dd0a24fcc968de0efde7ae97ef752daf0906e4767619dd7231"
+    }
+  ]
+}

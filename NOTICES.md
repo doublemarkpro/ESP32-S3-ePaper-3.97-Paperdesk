@@ -19,6 +19,17 @@
 
 字体版权声明：Copyright 2014–2021 Adobe，Reserved Font Name “Source”。字体按 SIL Open Font License 1.1 提供。完整许可随工程保存在 [assets/fonts/OFL.txt](assets/fonts/OFL.txt)。转换工具为 `tools/generate_fonts.py`；生成位图仍受字体许可适用条款约束。
 
+## 首页数字字体
+
+两套首页的数字字库由 `tools/generate_theme_fonts.py` 转换为 `firmware/main/theme_*.bin`。两种字体均按 SIL Open Font License 1.1 提供，生成的位图字库也保留适用的字体许可要求。
+
+| 风格 | 字体与来源 | 版权与完整许可 |
+| --- | --- | --- |
+| 精密桌面钟 | Barlow Condensed Light / Regular，[Google Fonts源文件](https://github.com/google/fonts/tree/main/ofl/barlowcondensed) | Copyright 2017 The Barlow Project Authors；[OFL.txt](assets/fonts/barlow-condensed/OFL.txt) |
+| 编辑式微衬线 | DM Serif Display Regular，[Google Fonts源文件](https://github.com/google/fonts/tree/main/ofl/dmserifdisplay) | Adobe（2014–2018）与Google LLC（2019），Reserved Font Name “Source”；[OFL.txt](assets/fonts/dm-serif-display/OFL.txt) |
+
+原始TTF供本地再生成使用，不随本仓库提交；已转换的字库与许可文本随源码提供。
+
 ## cJSON
 
 `firmware/components/json/` 包含 Dave Gamble 与 cJSON 贡献者提供的 cJSON v1.7.19，用于ESP-IDF 6环境中的JSON解析。

@@ -1,0 +1,22 @@
+{
+  "repository": "https://github.com/google/fonts",
+  "commit": "89f5431ff0db41bd2fe3f7ba21a723a01622428b",
+  "license": "SIL Open Font License 1.1",
+  "files": [
+    {
+      "file": "BarlowCondensed-Light.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/89f5431ff0db41bd2fe3f7ba21a723a01622428b/ofl/barlowcondensed/BarlowCondensed-Light.ttf",
+      "sha256": "2c37e1e6b5feb71d38a42e6180d2e2f4ca1aad22cfecbd017430f3863deba67d"
+    },
+    {
+      "file": "BarlowCondensed-Regular.ttf",
+      "url": "https://raw.githubusercontent.com/google/fonts/89f5431ff0db41bd2fe3f7ba21a723a01622428b/ofl/barlowcondensed/BarlowCondensed-Regular.ttf",
+      "sha256": "583cec5da3b84bc4dc7c9c72e2a565c94d34e431518b19d7e250b7830ad5f996"
+    },
+    {
+      "file": "OFL.txt",
+      "url": "https://raw.githubusercontent.com/google/fonts/89f5431ff0db41bd2fe3f7ba21a723a01622428b/ofl/barlowcondensed/OFL.txt",
+      "sha256": "186d750eb496a4c17a76385f82be6aea2ac1cf2de074a811d63786cf374ea73f"
+    }
+  ]
+}

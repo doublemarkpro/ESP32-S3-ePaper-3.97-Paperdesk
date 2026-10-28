@@ -4,7 +4,7 @@
 #include <cstdio>
 AppData app;
 std::mutex app_mutex;
-std::atomic<bool> dirty{false},force_sync{false};
+std::atomic<bool> dirty{false},force_sync{false},full_refresh{false};
 QueueHandle_t button_queue=nullptr;
 bool epaper_timed_out=false;
 static std::string output;
@@ -20,17 +20,27 @@ int main(int argc,char**argv){
     for(int mode=0;mode<2;mode++){
         if(mode==1){
             app.connected=true;app.ip="192.168.1.100";app.gateway_error.clear();app.gateway_updated=time(nullptr);
-            app.snapshot=R"({"schema":1,"weather":{"ok":true,"city":"青岛","temp":"20","text":"晴","icon":"100","feels_like":"20","wind":"东北风","wind_scale":"2","humidity":"64","updated_at":1793158080,"daily":[{"date":"2026-10-28","icon":"100","text":"晴","min":"14","max":"20"},{"date":"2026-10-29","icon":"305","text":"小雨","min":"13","max":"18"},{"date":"2026-10-30","icon":"101","text":"多云","min":"12","max":"19"}]},"codex":{"ok":true,"updated_at":1793158080,"windows":[{"bucket":"codex","label":"7天窗口","used":24,"remaining":76,"resets_at":1793660829}]}})";
+            app.snapshot=R"({"schema":1,"weather":{"ok":true,"city":"青岛","temp":"20","text":"晴","icon":"100","feels_like":"20","wind":"东北风","wind_scale":"2","humidity":"64","updated_at":1793158080,"daily":[{"date":"2026-10-28","icon":"100","text":"晴","min":"14","max":"20"},{"date":"2026-10-29","icon":"305","text":"小雨","min":"13","max":"18"},{"date":"2026-10-30","icon":"101","text":"多云","min":"12","max":"19"}]},"codex":{"ok":true,"updated_at":1793158080,"windows":[{"bucket":"codex","label":"7天窗口","used":29,"remaining":71,"resets_at":1793660829}]}})";
         }
         for(int page=0;page<4;page++){
             View v;v.page=page;output=std::string(argv[1])+"/"+(mode?"configured-":"unconfigured-")+std::to_string(page)+".pbm";draw_screen(v,true);
         }
     }
+    for(int style=0;style<2;style++){app.config.home_style=style;View v;output=std::string(argv[1])+"/home-style-"+(style?"b":"a")+".pbm";draw_screen(v,true);}
     auto j=cJSON_Parse(app.snapshot.c_str());auto w=cJSON_GetObjectItem(j,"weather");
     cJSON_SetValuestring(cJSON_GetObjectItem(w,"city"),"呼和浩特");cJSON_SetValuestring(cJSON_GetObjectItem(w,"text"),"雨夹雪");
     cJSON_SetValuestring(cJSON_GetObjectItem(w,"icon"),"404");cJSON_SetValuestring(cJSON_GetObjectItem(w,"temp"),"-12");
     cJSON_AddBoolToObject(w,"stale",true);app.temperature=-12.3;app.humidity=100;
     char* value=cJSON_PrintUnformatted(j);app.snapshot=value;cJSON_free(value);cJSON_Delete(j);
-    output=std::string(argv[1])+"/edge-cases.pbm";View v;draw_screen(v,true);
+    View v;
+    for(int style=0;style<2;style++){app.config.home_style=style;output=std::string(argv[1])+"/edge-"+(style?"b":"a")+".pbm";draw_screen(v,true);}
+    for(int remaining:{0,100}){
+        j=cJSON_Parse(app.snapshot.c_str());auto codex=cJSON_GetObjectItem(j,"codex");auto bucket=cJSON_GetArrayItem(cJSON_GetObjectItem(codex,"windows"),0);
+        cJSON_SetNumberValue(cJSON_GetObjectItem(bucket,"remaining"),remaining);cJSON_SetNumberValue(cJSON_GetObjectItem(bucket,"used"),100-remaining);cJSON_AddBoolToObject(codex,"stale",true);
+        value=cJSON_PrintUnformatted(j);app.snapshot=value;cJSON_free(value);cJSON_Delete(j);
+        for(int style=0;style<2;style++){app.config.home_style=style;output=std::string(argv[1])+"/quota-"+std::to_string(remaining)+(style?"-b":"-a")+".pbm";draw_screen(v,true);}
+    }
+    app.snapshot="{}";for(int style=0;style<2;style++){app.config.home_style=style;output=std::string(argv[1])+"/empty-"+(style?"b":"a")+".pbm";draw_screen(v,true);}
+    app.env_ok=false;for(int style=0;style<2;style++){app.config.home_style=style;output=std::string(argv[1])+"/sensor-unavailable-"+(style?"b":"a")+".pbm";draw_screen(v,true);}
     v.page=3;v.details=true;output=std::string(argv[1])+"/network-settings.pbm";draw_screen(v,true);
 }
