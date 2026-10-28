@@ -1,0 +1,661 @@
+{
+  "schema": 1,
+  "provider": "The Metropolitan Museum of Art",
+  "provider_documentation": "https://metmuseum.github.io/",
+  "provider_open_access": "https://github.com/metmuseum/openaccess",
+  "verified_on": "2026-10-28",
+  "selection": "Manually curated collection of 24 public-domain works suited to a monochrome portrait screen. The device cycles this finite directory by date; this is not a live daily-curated museum feed.",
+  "display_text": "Chinese display titles are shortened editorial translations; original titles, artist attribution and dates are preserved below.",
+  "runtime": "The device fetches images directly from images.metmuseum.org via verified HTTPS. No gateway, runtime search API, SD card, or credentials are required.",
+  "metadata_license": "CC0 Open Access dataset; source facts and image public-domain eligibility are checked against the official API.",
+  "artworks": [
+    {
+      "object_id": 362554,
+      "title": "植物习作·枝叶",
+      "artist": "法国佚名",
+      "date": "约1820",
+      "source_url": "https://www.metmuseum.org/art/collection/search/362554",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP823473.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/362554",
+      "metadata_sha256": "c63c6a1cb26fc75dacf8b44219ff06b638b6db0b9a1f2894fecd6338cd05066c",
+      "is_public_domain": true,
+      "original": {
+        "title": "Botanical Study",
+        "artist": "Anonymous, French, 19th century",
+        "artist_prefix": "",
+        "date": "ca. 1820",
+        "medium": "Watercolor",
+        "credit_line": "Anonymous Gift, 1968"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 402,
+        "height": 625,
+        "bytes": 47764,
+        "progressive": false,
+        "sha256": "7a717efeb13ee0dab82660cf9222ad262bef2c5ed02836cfb9a0860763ef49dd"
+      }
+    },
+    {
+      "object_id": 396910,
+      "title": "丢勒的纹章",
+      "artist": "丢勒",
+      "date": "1523",
+      "source_url": "https://www.metmuseum.org/art/collection/search/396910",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP816462.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/396910",
+      "metadata_sha256": "2267164aa4ae4daf19c21e0a26133703415889a640488ce2a5934721161050c2",
+      "is_public_domain": true,
+      "original": {
+        "title": "Coat of Arms of Albrecht Dürer",
+        "artist": "Albrecht Dürer",
+        "artist_prefix": "",
+        "date": "1523",
+        "medium": "Woodcut",
+        "credit_line": "The Elisha Whittelsey Collection, The Elisha Whittelsey Fund, 1952"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 458,
+        "height": 624,
+        "bytes": 162516,
+        "progressive": false,
+        "sha256": "1a800dbca139682c0b70f13a975d593163a47b95159bba13e2942e16603e8740"
+      }
+    },
+    {
+      "object_id": 459211,
+      "title": "年轻女子头像",
+      "artist": "丢勒",
+      "date": "1522",
+      "source_url": "https://www.metmuseum.org/art/collection/search/459211",
+      "image_url": "https://images.metmuseum.org/CRDImages/rl/web-large/DP809594.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/459211",
+      "metadata_sha256": "efaa75a4dca8250473869eee9459f701e14558514a54cfcaf3c6973467d885c5",
+      "is_public_domain": true,
+      "original": {
+        "title": "Head of a Young Woman",
+        "artist": "Albrecht Dürer",
+        "artist_prefix": "",
+        "date": "1522",
+        "medium": "Black chalk highlighted with white chalk (abraded) on green prepared paper.",
+        "credit_line": "Robert Lehman Collection, 1975"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 474,
+        "height": 625,
+        "bytes": 57203,
+        "progressive": false,
+        "sha256": "b7cd2cf7968e15f93d13a861c547d81154633a0641cdc01d66445aa25aa1c025"
+      }
+    },
+    {
+      "object_id": 362627,
+      "title": "植物习作·根系",
+      "artist": "法国佚名",
+      "date": "约1820",
+      "source_url": "https://www.metmuseum.org/art/collection/search/362627",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP823474.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/362627",
+      "metadata_sha256": "b293229e6374b860ed92b5ecd7fa30441261c5d69db7a60b7aa710ee5fac63f6",
+      "is_public_domain": true,
+      "original": {
+        "title": "Botanical Studies",
+        "artist": "Anonymous, French, 19th century",
+        "artist_prefix": "",
+        "date": "ca. 1820",
+        "medium": "Watercolor over graphite",
+        "credit_line": "Anonymous Gift, 1968"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 407,
+        "height": 624,
+        "bytes": 51493,
+        "progressive": false,
+        "sha256": "5b6e02fe8b4f9c93cee82896f20baa5376a34f8137df33c83b2ee7508a6ad31a"
+      }
+    },
+    {
+      "object_id": 391544,
+      "title": "持剑的伦勃朗",
+      "artist": "伦勃朗",
+      "date": "1634",
+      "source_url": "https://www.metmuseum.org/art/collection/search/391544",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP814408.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/391544",
+      "metadata_sha256": "3a07db3f0f086d36df99f4221a71b70b5474576e32ef9014f41a83e212e3054e",
+      "is_public_domain": true,
+      "original": {
+        "title": "Rembrandt with Raised Sabre",
+        "artist": "Rembrandt (Rembrandt van Rijn)",
+        "artist_prefix": "",
+        "date": "1634",
+        "medium": "Etching with touches of burin",
+        "credit_line": "Gift of Henry Walters, 1917"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 500,
+        "height": 625,
+        "bytes": 138489,
+        "progressive": false,
+        "sha256": "d0503fe02e7aba976f736a4bca436aaa1eaf88535cc3181b2ab7ff4d3bfc0b68"
+      }
+    },
+    {
+      "object_id": 838375,
+      "title": "石竹花",
+      "artist": "佚名",
+      "date": "约1630",
+      "source_url": "https://www.metmuseum.org/art/collection/search/838375",
+      "image_url": "https://images.metmuseum.org/CRDImages/is/web-large/DP-32122-001.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/838375",
+      "metadata_sha256": "7e35752652ad213a291136d9e9d8108140dc0868e1146d007fdca341359a53f7",
+      "is_public_domain": true,
+      "original": {
+        "title": "Botanical Painting: Dianthus",
+        "artist": "",
+        "artist_prefix": "",
+        "date": "ca. 1630",
+        "medium": "Opaque color on paper",
+        "credit_line": "Howard Hodgkin Collection, Purchase, Florence and Herbert Irving Acquisitions, Harris Brisbane Dick, and 2020 Benefit Funds; Howard S. and Nancy Marks, Lila Acheson Wallace, and Friends of Islamic Art Gifts; Louis V. Bell, Harris Brisbane Dick, Fletcher, and Rogers Funds and Joseph Pulitzer Bequest; and funds from various donors, 2022"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 500,
+        "height": 625,
+        "bytes": 179094,
+        "progressive": false,
+        "sha256": "cd8bf310d8039c8ffe30acb2fbc038b4c1ece5d0f2c2bc15b8bdcf57f2b222eb"
+      }
+    },
+    {
+      "object_id": 336231,
+      "title": "鹿特丹的伊拉斯谟",
+      "artist": "丢勒",
+      "date": "1526",
+      "source_url": "https://www.metmuseum.org/art/collection/search/336231",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP815934.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/336231",
+      "metadata_sha256": "c774e8ad38ec95cbd8cc7f4d7f02c6c54c6c2cc2a2651daee224849c3cfb545a",
+      "is_public_domain": true,
+      "original": {
+        "title": "Erasmus of Rotterdam",
+        "artist": "Albrecht Dürer",
+        "artist_prefix": "",
+        "date": "1526",
+        "medium": "Engraving",
+        "credit_line": "Fletcher Fund, 1919"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 497,
+        "height": 625,
+        "bytes": 140681,
+        "progressive": false,
+        "sha256": "eab97d48daad251f0ae9aac56a03564c23cdbd07ee4f2ea20fde7655c6859638"
+      }
+    },
+    {
+      "object_id": 362545,
+      "title": "草木习作",
+      "artist": "法国佚名",
+      "date": "约1820",
+      "source_url": "https://www.metmuseum.org/art/collection/search/362545",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP823471.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/362545",
+      "metadata_sha256": "ccf272edb6d834342fff68c496187d5a111920df6cba6534268cb58bda984ad9",
+      "is_public_domain": true,
+      "original": {
+        "title": "Botanical Studies (recto); Botanical Studies (verso)",
+        "artist": "Anonymous, French, 19th century",
+        "artist_prefix": "",
+        "date": "ca. 1820",
+        "medium": "Watercolor over graphite",
+        "credit_line": "Anonymous Gift, 1968"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 406,
+        "height": 624,
+        "bytes": 40091,
+        "progressive": false,
+        "sha256": "6285fa680c40e5f5cc84415cbcb4e4482214ba345d2bd37883d1d85e9ba935bf"
+      }
+    },
+    {
+      "object_id": 459214,
+      "title": "自画像、手与枕头习作",
+      "artist": "丢勒",
+      "date": "1493",
+      "source_url": "https://www.metmuseum.org/art/collection/search/459214",
+      "image_url": "https://images.metmuseum.org/CRDImages/rl/web-large/DP282110.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/459214",
+      "metadata_sha256": "d9eb9e0d179daaa4a5f9cb62f4a5d208a30e05561b33e1f035de5e71995ec700",
+      "is_public_domain": true,
+      "original": {
+        "title": "Self-portrait, Study of a Hand and a Pillow (recto); Six Studies of Pillows (verso)",
+        "artist": "Albrecht Dürer",
+        "artist_prefix": "",
+        "date": "1493",
+        "medium": "Pen and brown ink",
+        "credit_line": "Robert Lehman Collection, 1975"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 468,
+        "height": 624,
+        "bytes": 258216,
+        "progressive": false,
+        "sha256": "55b421e9133299ddd334261307d7bc94d64d96d064e818a443fa35932530b3f0"
+      }
+    },
+    {
+      "object_id": 360446,
+      "title": "植物剪影",
+      "artist": "玛丽·德拉尼",
+      "date": "约1772–82",
+      "source_url": "https://www.metmuseum.org/art/collection/search/360446",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP801159.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/360446",
+      "metadata_sha256": "f956dd7f47e764b1aee8cabb2a00cae9e9989fe4e4d36687f4012c0dd7b911d1",
+      "is_public_domain": true,
+      "original": {
+        "title": "Botanical Study",
+        "artist": "Mary Delany",
+        "artist_prefix": "",
+        "date": "ca. 1772–82",
+        "medium": "Paper collage",
+        "credit_line": "Harris Brisbane Dick Fund, 1925"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 556,
+        "height": 624,
+        "bytes": 76272,
+        "progressive": false,
+        "sha256": "c67ce7e5051b3e38a2248662c13a88c3af09b6b9d5db16d5094248671209dfee"
+      }
+    },
+    {
+      "object_id": 354638,
+      "title": "画家的母亲",
+      "artist": "伦勃朗",
+      "date": "1628",
+      "source_url": "https://www.metmuseum.org/art/collection/search/354638",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP814312.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/354638",
+      "metadata_sha256": "9a9e22e69cca84cde100b3ac2253a739e79004655fd45ec695c8deb2f4576c31",
+      "is_public_domain": true,
+      "original": {
+        "title": "The Artist's Mother: Head and Bust, Three-Quarters Right",
+        "artist": "Rembrandt (Rembrandt van Rijn)",
+        "artist_prefix": "",
+        "date": "1628",
+        "medium": "Etching; New Holl. second state of four",
+        "credit_line": "Rogers Fund, 1918"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 600,
+        "height": 625,
+        "bytes": 154163,
+        "progressive": false,
+        "sha256": "b0f191a6a13c9287395ddf2e5fb4ba1bf462b67c77b13830d894c8bb29b0d060"
+      }
+    },
+    {
+      "object_id": 391269,
+      "title": "勃兰登堡的阿尔布雷希特",
+      "artist": "丢勒",
+      "date": "1519",
+      "source_url": "https://www.metmuseum.org/art/collection/search/391269",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP815919.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/391269",
+      "metadata_sha256": "6cd73c29159a93978e53035a8dc3d0629f521ee839f0ea7b416ae0b80d36f549",
+      "is_public_domain": true,
+      "original": {
+        "title": "Cardinal Albrecht of Brandenburg",
+        "artist": "Albrecht Dürer",
+        "artist_prefix": "",
+        "date": "1519",
+        "medium": "Engraving",
+        "credit_line": "George Khuner Collection, Bequest of Marianne Khuner, 1984"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 440,
+        "height": 625,
+        "bytes": 121263,
+        "progressive": false,
+        "sha256": "83b120c76b0b4cf5fdf08bd2064f2f267e65b6b79acb7ebd3769f349b07dc16b"
+      }
+    },
+    {
+      "object_id": 359970,
+      "title": "树与人物头像习作",
+      "artist": "伦勃朗",
+      "date": "约1642",
+      "source_url": "https://www.metmuseum.org/art/collection/search/359970",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP814542.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/359970",
+      "metadata_sha256": "d366c2b639f9bbc3d9d710f2415b5a7e942b36d85d3eaff23a2b183bb7adf1df",
+      "is_public_domain": true,
+      "original": {
+        "title": "Sheet with Two Studies:  A Tree and the Upper Part of a Head of Rembrandt Wearing a Velvet Cap",
+        "artist": "Rembrandt (Rembrandt van Rijn)",
+        "artist_prefix": "",
+        "date": "ca. 1642",
+        "medium": "Etching; only state",
+        "credit_line": "Rogers Fund, 1970"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 524,
+        "height": 625,
+        "bytes": 162252,
+        "progressive": false,
+        "sha256": "15cdbb99d82aac6a57417c6aecdeae6be5ab6d87a7fc8c4b6a0f73edf52b039f"
+      }
+    },
+    {
+      "object_id": 283063,
+      "title": "植物标本",
+      "artist": "塔尔博特",
+      "date": "约1835",
+      "source_url": "https://www.metmuseum.org/art/collection/search/283063",
+      "image_url": "https://images.metmuseum.org/CRDImages/ph/web-large/DP339367.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/283063",
+      "metadata_sha256": "b6e97eec9c9a78d683ef0ef23fc2ff93174332272cc837433b48ee36af2b536d",
+      "is_public_domain": true,
+      "original": {
+        "title": "[Botanical Specimen]",
+        "artist": "William Henry Fox Talbot",
+        "artist_prefix": "",
+        "date": "ca. 1835",
+        "medium": "Salted paper print",
+        "credit_line": "Gilman Collection, Gift of The Howard Gilman Foundation, 2005"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 408,
+        "height": 624,
+        "bytes": 31566,
+        "progressive": false,
+        "sha256": "c92830321712c6c08e7ad8d9fc203b134cde138a904f3695e0e8b5e817da9f25"
+      }
+    },
+    {
+      "object_id": 373068,
+      "title": "金匠扬·卢特玛",
+      "artist": "伦勃朗",
+      "date": "1656",
+      "source_url": "https://www.metmuseum.org/art/collection/search/373068",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP814897.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/373068",
+      "metadata_sha256": "cfe2aef422dcab612348c24f8e3330be5a361840d5b8fa911dc64a89ca93fe3b",
+      "is_public_domain": true,
+      "original": {
+        "title": "Jan Lutma, goldsmith",
+        "artist": "Rembrandt (Rembrandt van Rijn)",
+        "artist_prefix": "",
+        "date": "1656",
+        "medium": "Etching, engraving and drypoint; first of four states",
+        "credit_line": "The Sylmaris Collection, Gift of George Coe Graves, 1920"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 470,
+        "height": 624,
+        "bytes": 120711,
+        "progressive": false,
+        "sha256": "b26af49a72e3d9da71aa33a533840c51fde1ca47b99f959ea9bcc9bac29f629b"
+      }
+    },
+    {
+      "object_id": 437397,
+      "title": "自画像",
+      "artist": "伦勃朗",
+      "date": "1660",
+      "source_url": "https://www.metmuseum.org/art/collection/search/437397",
+      "image_url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP-16323-001.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/437397",
+      "metadata_sha256": "b64e79c9f2fe5a87201e1b57d84638c54bca2a53b43de9459e875f05c8839b9b",
+      "is_public_domain": true,
+      "original": {
+        "title": "Self-Portrait",
+        "artist": "Rembrandt (Rembrandt van Rijn)",
+        "artist_prefix": "",
+        "date": "1660",
+        "medium": "Oil on canvas",
+        "credit_line": "Bequest of Benjamin Altman, 1913"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 515,
+        "height": 625,
+        "bytes": 84655,
+        "progressive": false,
+        "sha256": "35d038445b6e024a94a381f3b3f099cb6b6188597e48d0cd4a3fe40be4e48a08"
+      }
+    },
+    {
+      "object_id": 360117,
+      "title": "圣米迦勒与龙",
+      "artist": "据丢勒原作",
+      "date": "1498",
+      "source_url": "https://www.metmuseum.org/art/collection/search/360117",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP816923.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/360117",
+      "metadata_sha256": "6e53e7f55739584d264e0496b2a2a773987da2cf1a154e05f0837f51157e699f",
+      "is_public_domain": true,
+      "original": {
+        "title": "Saint Michael Fighting the Dragon, from \"The Apocalypse\"",
+        "artist": "Albrecht Dürer",
+        "artist_prefix": "After",
+        "date": "1498",
+        "medium": "Woodcut",
+        "credit_line": "Gift of Mrs. Felix M. Warburg, 1940"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 451,
+        "height": 625,
+        "bytes": 186897,
+        "progressive": false,
+        "sha256": "c154bc8ba4ba80cdbedcf1a784366fa390232d54f2c6686222807bb8f58aa624"
+      }
+    },
+    {
+      "object_id": 437390,
+      "title": "女子肖像",
+      "artist": "伦勃朗",
+      "date": "1633",
+      "source_url": "https://www.metmuseum.org/art/collection/search/437390",
+      "image_url": "https://images.metmuseum.org/CRDImages/ep/web-large/DP145913.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/437390",
+      "metadata_sha256": "400bcb8abf380f6c03b3fc5d84994e363920da189d5f53f980f222f0a7811941",
+      "is_public_domain": true,
+      "original": {
+        "title": "Portrait of a Woman",
+        "artist": "Rembrandt (Rembrandt van Rijn)",
+        "artist_prefix": "",
+        "date": "1633",
+        "medium": "Oil on wood",
+        "credit_line": "Bequest of Benjamin Altman, 1913"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 463,
+        "height": 624,
+        "bytes": 41962,
+        "progressive": false,
+        "sha256": "96976b69d3790bd8252d8ffe8b8bdbe9272836997623dbc9d8c99aa3ba1b72b7"
+      }
+    },
+    {
+      "object_id": 264587,
+      "title": "植物园",
+      "artist": "佚名",
+      "date": "1860–70年代",
+      "source_url": "https://www.metmuseum.org/art/collection/search/264587",
+      "image_url": "https://images.metmuseum.org/CRDImages/ph/web-large/DP72085.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/264587",
+      "metadata_sha256": "7d955bcd1b431be455beeec7c8f9132843c0545fa73df0f54f7b6dce5b51613f",
+      "is_public_domain": true,
+      "original": {
+        "title": "Botanical Garden",
+        "artist": "Unknown",
+        "artist_prefix": "",
+        "date": "1860s–70s",
+        "medium": "Albumen silver print from glass negative",
+        "credit_line": "Gift of Matthew Dontzin, 1985"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 464,
+        "height": 624,
+        "bytes": 119065,
+        "progressive": false,
+        "sha256": "d30dfff5224b80ead16ce2f5387dd4adf3b9d782ae5aae2a7794c74ddf78cf7b"
+      }
+    },
+    {
+      "object_id": 387568,
+      "title": "圣约翰殉难",
+      "artist": "丢勒",
+      "date": "1511",
+      "source_url": "https://www.metmuseum.org/art/collection/search/387568",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP816731.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/387568",
+      "metadata_sha256": "51ac28a45014fbdd404e1bda62b9705a8189aaa24dc1b334b8c4011a946c2f00",
+      "is_public_domain": true,
+      "original": {
+        "title": "The Martyrdom of Saint John, from \"The Apocalypse\"",
+        "artist": "Albrecht Dürer",
+        "artist_prefix": "",
+        "date": "1511",
+        "medium": "Woodcut",
+        "credit_line": "Gift of Junius Spencer Morgan, 1919"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 457,
+        "height": 625,
+        "bytes": 172757,
+        "progressive": false,
+        "sha256": "e2d89819511958d8ba89532415135fd980de32b4ef2a7ebea1a83a014712b376"
+      }
+    },
+    {
+      "object_id": 459194,
+      "title": "最后的晚餐习作",
+      "artist": "伦勃朗",
+      "date": "1634–35",
+      "source_url": "https://www.metmuseum.org/art/collection/search/459194",
+      "image_url": "https://images.metmuseum.org/CRDImages/rl/web-large/DP287735.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/459194",
+      "metadata_sha256": "911b4990aef6665b3eac15327b9774a34f8a960b5920e7b0a21d204626cd0fbe",
+      "is_public_domain": true,
+      "original": {
+        "title": "The Last Supper, after Leonardo da Vinci",
+        "artist": "Rembrandt (Rembrandt van Rijn)",
+        "artist_prefix": "",
+        "date": "1634–35",
+        "medium": "Red chalk",
+        "credit_line": "Robert Lehman Collection, 1975"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 599,
+        "height": 467,
+        "bytes": 126043,
+        "progressive": false,
+        "sha256": "00b84aec368c09ff5c40f066ed3ebf5473b0af6812f8f9dc274877e36172ca3a"
+      }
+    },
+    {
+      "object_id": 336222,
+      "title": "亚当与夏娃",
+      "artist": "丢勒",
+      "date": "1504",
+      "source_url": "https://www.metmuseum.org/art/collection/search/336222",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP816026.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/336222",
+      "metadata_sha256": "90bd19eb13ad0ef4e3ab07f848c063a3eda6f77df4692a956ba3b63109d17ed6",
+      "is_public_domain": true,
+      "original": {
+        "title": "Adam and Eve",
+        "artist": "Albrecht Dürer",
+        "artist_prefix": "",
+        "date": "1504",
+        "medium": "Engraving",
+        "credit_line": "Fletcher Fund, 1919"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 493,
+        "height": 624,
+        "bytes": 140960,
+        "progressive": false,
+        "sha256": "fdd76328c77a2f3b535c2b57ca3ee3ed738b122bd87e1fb854203f5ebc2c49b8"
+      }
+    },
+    {
+      "object_id": 370641,
+      "title": "天使向牧人显现",
+      "artist": "伦勃朗",
+      "date": "1634",
+      "source_url": "https://www.metmuseum.org/art/collection/search/370641",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP814425.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/370641",
+      "metadata_sha256": "fbf2e37243cfaad37f2a751c3aa5fbf4d7322e6f5e05947c47bf93710d84cbcc",
+      "is_public_domain": true,
+      "original": {
+        "title": "The Angel Appearing to the Shepherds",
+        "artist": "Rembrandt (Rembrandt van Rijn)",
+        "artist_prefix": "",
+        "date": "1634",
+        "medium": "Etching and drypoint; third state of three",
+        "credit_line": "The Sylmaris Collection, Gift of George Coe Graves, 1920"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 530,
+        "height": 625,
+        "bytes": 165665,
+        "progressive": false,
+        "sha256": "d5aab53bda461dfddd30c73517137b7eb57f691c6a8c348b457c831f030e516e"
+      }
+    },
+    {
+      "object_id": 364151,
+      "title": "安葬",
+      "artist": "伦勃朗",
+      "date": "约1654",
+      "source_url": "https://www.metmuseum.org/art/collection/search/364151",
+      "image_url": "https://images.metmuseum.org/CRDImages/dp/web-large/DP814829.jpg",
+      "metadata_url": "https://collectionapi.metmuseum.org/public/collection/v1/objects/364151",
+      "metadata_sha256": "b2de853f138f363c29720c571f6fd22bfd91d3923a1424b1b819a3d01aaaa69a",
+      "is_public_domain": true,
+      "original": {
+        "title": "The Entombment",
+        "artist": "Rembrandt (Rembrandt van Rijn)",
+        "artist_prefix": "",
+        "date": "ca. 1654",
+        "medium": "Etching and drypoint ; first of four states",
+        "credit_line": "The Sylmaris Collection, Gift of George Coe Graves, 1920"
+      },
+      "image": {
+        "format": "JPEG",
+        "width": 483,
+        "height": 624,
+        "bytes": 174332,
+        "progressive": false,
+        "sha256": "239253c2b91994a54f75afbbddde3646480197447edd72243d81ca8e63854ac6"
+      }
+    }
+  ]
+}

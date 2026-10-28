@@ -3,6 +3,8 @@
 #include "weather_icons.h"
 #include "weather_layout.h"
 #include "calendar.h"
+#include "gallery.h"
+#include "gallery_image.h"
 #include "esp_log.h"
 #include <algorithm>
 #include <climits>
@@ -349,6 +351,30 @@ void draw_calendar(const View& view,time_t now) {
     }
     fill(32,751,416,1);in_box(32,764,416,30,"短按切换月份 · 长按设置",20);
 }
+void draw_gallery(const AppData& a) {
+    auto gallery=paperdesk_gallery::snapshot(true);
+    label(24,27,"纸间美术馆",24,300);
+    if(gallery.ready)right(456,31,std::to_string(gallery.index+1)+" / "+std::to_string(gallery.count),20,140);
+    else right(456,31,"每日一画",20,140);
+    fill(24,64,432,1);
+    if(gallery.ready&&gallery.pixels.size()==gallery_image::Bytes){
+        for(int y=0;y<gallery_image::Height;++y)for(int x=0;x<gallery_image::Width;++x)
+            if(!(gallery.pixels[size_t(y)*gallery_image::Width/8+x/8]&(128>>(x&7))))pixel(24+x,80+y);
+        in_box(24,641,432,38,gallery.title,24);
+        in_box(24,689,432,28,gallery.artist,20);
+        in_box(24,724,432,26,gallery.date+" · The Met",20);
+    }else{
+        round_box(157,229,166,192,3,2);fill(179,373,122,1);fill(179,395,82,1);
+        for(int y=0;y<74;++y)for(int x=0;x<118;++x)if(y==std::abs(x-40)/2||y==std::abs(x-86)/2+20)pixel(181+x,270+y);
+        in_box(24,466,432,40,gallery.busy?"正在准备今日画作":"每天，一幅新的风景",24);
+        in_box(24,524,432,32,gallery.status,20);
+        in_box(24,651,432,30,"直连博物馆 · 自动每日轮换",20);
+        in_box(24,695,432,30,"已下载的画作会保留在设备中",20);
+    }
+    fill(24,759,432,1);
+    std::string hint=gallery.busy?"正在换画 · 请稍候":!a.connected?"离线留存 · 长按设置":gallery.cached?"留存画作 · 短按换画":"短按换画 · 长按设置";
+    in_box(24,768,432,27,hint,20);
+}
 } // namespace
 
 void draw_screen(const View& view,bool full) {
@@ -368,13 +394,15 @@ void draw_screen(const View& view,bool full) {
     bool stale=!a.connected||!a.gateway_error.empty()||(clock_ok&&a.gateway_updated>0&&now-a.gateway_updated>900);
     bool weather_stale=stale||cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(weather,"stale"));
     bool quota_stale=stale||cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(codex,"stale"));
-    const char* pages[]={"桌面总览","天气","月历"};
+    const char* pages[]={"桌面总览","天气","月历","画廊"};
     if(view.page==0){
         draw_home(a,weather,codex,windows,weather_ok,quota_ok,weather_stale,quota_stale,now);
     }else if(view.page==1){
         draw_weather(a,weather,weather_ok,weather_stale,now);
     }else if(view.page==2){
         draw_calendar(view,now);
+    }else if(view.page==GalleryPage){
+        draw_gallery(a);
     }else{
         label(32,36,view.details?"网络与配网":"设置",32);
         if(view.details){
@@ -386,9 +414,9 @@ void draw_screen(const View& view,bool full) {
             label(32,745,"短按返回设置 · 长按回首页",20);
         }else{
             const char* labels[]={"网络与手机设置","首页风格","天气风格","开机默认页面","自动轮播","夜间暂停轮播","立即同步数据"};
-            std::string values[]={"查看",a.config.home_style==1?"编辑式微衬线":"精密桌面钟",a.config.weather_style==1?"温差观测":"天气日报",pages[std::clamp(a.config.default_page,0,2)],a.config.rotation_minutes?"5分钟":"关闭",a.config.night?"开启":"关闭","请求"};
+            std::string values[]={"查看",a.config.home_style==1?"编辑式微衬线":"精密桌面钟",a.config.weather_style==1?"温差观测":"天气日报",pages[std::clamp(a.config.default_page,0,ContentPageCount-1)],a.config.rotation_minutes?"5分钟":"关闭",a.config.night?"开启":"关闭","请求"};
             for(int i=0;i<7;i++){int y=130+i*62;if(view.selection==i)round_box(24,y-13,432,56,8,2);label(40,y,labels[i],24,270);right(432,y+3,values[i],20,160);}
-            label(32,580,"管理码："+a.config.admin_token,24);label(32,628,"http://"+a.ip,20);label(32,680,"纸间 Paperdesk 0.5.0",20);label(32,751,"拨动选择 · 短按修改 · 长按回首页",20);
+            label(32,580,"管理码："+a.config.admin_token,24);label(32,628,"http://"+a.ip,20);label(32,680,"纸间 Paperdesk 0.6.0",20);label(32,751,"拨动选择 · 短按修改 · 长按回首页",20);
         }
     }
     cJSON_Delete(snapshot);epaper_timed_out=false;

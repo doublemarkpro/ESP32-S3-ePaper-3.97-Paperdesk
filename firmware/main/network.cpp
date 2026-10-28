@@ -1,4 +1,6 @@
 #include "paperdesk.h"
+#include "gallery.h"
+#include "gallery_image.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "esp_wifi.h"
@@ -25,7 +27,7 @@ static std::string config_json(){auto j=cJSON_CreateObject();cJSON_AddStringToOb
 void config_save(){std::string j=config_json();ESP_ERROR_CHECK(nvs_set_str(storage,"config",j.c_str()));ESP_ERROR_CHECK(nvs_commit(storage));}
 void config_load(){
     esp_err_t e=nvs_flash_init_partition("storage");if(e==ESP_ERR_NVS_NO_FREE_PAGES||e==ESP_ERR_NVS_NEW_VERSION_FOUND){ESP_ERROR_CHECK(nvs_flash_erase_partition("storage"));e=nvs_flash_init_partition("storage");}ESP_ERROR_CHECK(e);ESP_ERROR_CHECK(nvs_open_from_partition("storage","paperdesk",NVS_READWRITE,&storage));
-    size_t n=0;if(nvs_get_str(storage,"config",nullptr,&n)==ESP_OK&&n<8192){std::string s(n,'\0');nvs_get_str(storage,"config",s.data(),&n);auto j=cJSON_Parse(s.c_str());app.config.ssid=json_string(j,"ssid");app.config.wifi_password=json_string(j,"wifi_password");app.config.gateway=json_string(j,"gateway");app.config.gateway_token=json_string(j,"gateway_token");app.config.admin_token=json_string(j,"admin_token");int saved_page=json_int(j,"default_page");app.config.default_page=json_int(j,"layout_version")<2?(saved_page==3?2:saved_page==1?1:0):std::clamp(saved_page,0,2);app.config.rotation_minutes=json_int(j,"rotation_minutes")==5?5:0;app.config.night=!cJSON_IsFalse(cJSON_GetObjectItem(j,"night"));auto style=cJSON_GetObjectItemCaseSensitive(j,"home_style");app.config.home_style=cJSON_IsNumber(style)&&style->valuedouble==1?1:0;style=cJSON_GetObjectItemCaseSensitive(j,"weather_style");app.config.weather_style=cJSON_IsNumber(style)&&style->valuedouble==1?1:0;cJSON_Delete(j);}
+    size_t n=0;if(nvs_get_str(storage,"config",nullptr,&n)==ESP_OK&&n<8192){std::string s(n,'\0');nvs_get_str(storage,"config",s.data(),&n);auto j=cJSON_Parse(s.c_str());app.config.ssid=json_string(j,"ssid");app.config.wifi_password=json_string(j,"wifi_password");app.config.gateway=json_string(j,"gateway");app.config.gateway_token=json_string(j,"gateway_token");app.config.admin_token=json_string(j,"admin_token");int saved_page=json_int(j,"default_page");app.config.default_page=json_int(j,"layout_version")<2?(saved_page==3?CalendarPage:saved_page==1?WeatherPage:HomePage):std::clamp(saved_page,0,ContentPageCount-1);app.config.rotation_minutes=json_int(j,"rotation_minutes")==5?5:0;app.config.night=!cJSON_IsFalse(cJSON_GetObjectItem(j,"night"));auto style=cJSON_GetObjectItemCaseSensitive(j,"home_style");app.config.home_style=cJSON_IsNumber(style)&&style->valuedouble==1?1:0;style=cJSON_GetObjectItemCaseSensitive(j,"weather_style");app.config.weather_style=cJSON_IsNumber(style)&&style->valuedouble==1?1:0;cJSON_Delete(j);}
     if(app.config.admin_token.empty()){char token[12];snprintf(token,sizeof token,"%08lx",(unsigned long)esp_random());app.config.admin_token=token;config_save();}
     size_t size=0;if(nvs_get_blob(storage,"snapshot",nullptr,&size)==ESP_OK&&size<32768){std::string s(size,'\0');if(nvs_get_blob(storage,"snapshot",s.data(),&size)==ESP_OK){app.snapshot=s;auto j=cJSON_Parse(s.c_str());app.gateway_updated=json_int(j,"generated_at");cJSON_Delete(j);}}
 }
@@ -33,7 +35,28 @@ static bool auth(httpd_req_t*r){size_t n=httpd_req_get_hdr_value_len(r,"X-Paperd
 static esp_err_t json_reply(httpd_req_t*r,const std::string&s){httpd_resp_set_type(r,"application/json; charset=utf-8");httpd_resp_set_hdr(r,"Cache-Control","no-store");return httpd_resp_send(r,s.c_str(),s.size());}
 static esp_err_t denied(httpd_req_t*r){httpd_resp_set_status(r,"401 Unauthorized");return json_reply(r,"{\"error\":\"管理码不正确，请查看设备设置页\"}");}
 static esp_err_t page_handler(httpd_req_t*r){httpd_resp_set_type(r,"text/html; charset=utf-8");httpd_resp_set_hdr(r,"Cache-Control","no-store");httpd_resp_set_hdr(r,"Content-Security-Policy","default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'");return httpd_resp_send(r,(const char*)web_start,web_end-web_start);}
-static esp_err_t state_handler(httpd_req_t*r){auto j=cJSON_CreateObject();{std::lock_guard<std::mutex> guard(app_mutex);cJSON_AddStringToObject(j,"ip",app.ip.c_str());cJSON_AddBoolToObject(j,"connected",app.connected);cJSON_AddBoolToObject(j,"sensor_ok",app.env_ok);if(app.env_ok){cJSON_AddNumberToObject(j,"temperature",app.temperature);cJSON_AddNumberToObject(j,"humidity",app.humidity);}cJSON_AddStringToObject(j,"gateway_status",app.gateway_error.empty()?"已同步":app.gateway_error.c_str());cJSON_AddStringToObject(j,"version","0.5.0");cJSON_AddNumberToObject(j,"home_style",app.config.home_style);cJSON_AddNumberToObject(j,"weather_style",app.config.weather_style);}char*p=cJSON_PrintUnformatted(j);std::string s=p;cJSON_free(p);cJSON_Delete(j);return json_reply(r,s);}
+static esp_err_t state_handler(httpd_req_t*r){auto j=cJSON_CreateObject();{std::lock_guard<std::mutex> guard(app_mutex);cJSON_AddStringToObject(j,"ip",app.ip.c_str());cJSON_AddBoolToObject(j,"connected",app.connected);cJSON_AddBoolToObject(j,"sensor_ok",app.env_ok);if(app.env_ok){cJSON_AddNumberToObject(j,"temperature",app.temperature);cJSON_AddNumberToObject(j,"humidity",app.humidity);}cJSON_AddStringToObject(j,"gateway_status",app.gateway_error.empty()?"已同步":app.gateway_error.c_str());cJSON_AddStringToObject(j,"version","0.6.0");cJSON_AddNumberToObject(j,"home_style",app.config.home_style);cJSON_AddNumberToObject(j,"weather_style",app.config.weather_style);}char*p=cJSON_PrintUnformatted(j);std::string s=p;cJSON_free(p);cJSON_Delete(j);return json_reply(r,s);}
+static esp_err_t gallery_handler(httpd_req_t*r){
+    if(!auth(r))return denied(r);
+    if(r->method==HTTP_POST){paperdesk_gallery::request_next();return json_reply(r,"{\"ok\":true}");}
+    auto g=paperdesk_gallery::snapshot();auto j=cJSON_CreateObject();
+    cJSON_AddBoolToObject(j,"ready",g.ready);cJSON_AddBoolToObject(j,"busy",g.busy);cJSON_AddBoolToObject(j,"cached",g.cached);
+    cJSON_AddNumberToObject(j,"index",g.index);cJSON_AddNumberToObject(j,"count",g.count);cJSON_AddNumberToObject(j,"object_id",g.object_id);cJSON_AddNumberToObject(j,"updated_at",double(g.updated_at));
+    cJSON_AddStringToObject(j,"title",g.title.c_str());cJSON_AddStringToObject(j,"artist",g.artist.c_str());cJSON_AddStringToObject(j,"date",g.date.c_str());cJSON_AddStringToObject(j,"source_url",g.source_url.c_str());cJSON_AddStringToObject(j,"status",g.status.c_str());
+    char*p=cJSON_PrintUnformatted(j);std::string body=p?p:"{}";cJSON_free(p);cJSON_Delete(j);return json_reply(r,body);
+}
+static esp_err_t gallery_image_handler(httpd_req_t*r){
+    if(!auth(r))return denied(r);
+    auto g=paperdesk_gallery::snapshot(true);
+    if(!g.ready||g.pixels.size()!=gallery_image::Bytes){httpd_resp_set_status(r,"404 Not Found");return json_reply(r,"{\"error\":\"作品尚未就绪\"}");}
+    // PBM uses 1 for black, opposite to the display's white-bit buffer.
+    for(auto&byte:g.pixels)byte=uint8_t(~byte);
+    char header[32];int length=snprintf(header,sizeof header,"P4\n%d %d\n",gallery_image::Width,gallery_image::Height);
+    httpd_resp_set_type(r,"image/x-portable-bitmap");httpd_resp_set_hdr(r,"Cache-Control","no-store");
+    esp_err_t result=httpd_resp_send_chunk(r,header,length);if(result!=ESP_OK)return result;
+    result=httpd_resp_send_chunk(r,reinterpret_cast<const char*>(g.pixels.data()),g.pixels.size());if(result!=ESP_OK)return result;
+    return httpd_resp_send_chunk(r,nullptr,0);
+}
 static esp_err_t config_handler(httpd_req_t*r){if(!auth(r))return denied(r);if(r->method==HTTP_GET){auto j=cJSON_CreateObject();{std::lock_guard<std::mutex> guard(app_mutex);auto&c=app.config;cJSON_AddStringToObject(j,"ssid",c.ssid.c_str());cJSON_AddStringToObject(j,"gateway",c.gateway.c_str());cJSON_AddBoolToObject(j,"wifi_password_set",!c.wifi_password.empty());cJSON_AddBoolToObject(j,"gateway_token_set",!c.gateway_token.empty());cJSON_AddNumberToObject(j,"home_style",c.home_style);cJSON_AddNumberToObject(j,"weather_style",c.weather_style);cJSON_AddNumberToObject(j,"default_page",c.default_page);cJSON_AddNumberToObject(j,"rotation_minutes",c.rotation_minutes);cJSON_AddBoolToObject(j,"night",c.night);}char*p=cJSON_PrintUnformatted(j);std::string s=p;cJSON_free(p);cJSON_Delete(j);return json_reply(r,s);}
     if(r->content_len<=0||r->content_len>4096){httpd_resp_set_status(r,"400 Bad Request");return json_reply(r,"{\"error\":\"请求过大\"}");}std::string body(r->content_len,'\0');int total=0;while(total<r->content_len){int n=httpd_req_recv(r,body.data()+total,r->content_len-total);if(n<=0)return ESP_FAIL;total+=n;}auto j=cJSON_Parse(body.c_str());if(!cJSON_IsObject(j)){cJSON_Delete(j);httpd_resp_set_status(r,"400 Bad Request");return json_reply(r,"{\"error\":\"无效JSON\"}");}
     Config next;{std::lock_guard<std::mutex> guard(app_mutex);next=app.config;}
@@ -49,8 +72,8 @@ static esp_err_t config_handler(httpd_req_t*r){if(!auth(r))return denied(r);if(r
         else if(!strcmp(key,"home_style"))next.home_style=static_cast<int>(style->valuedouble);
         else next.weather_style=static_cast<int>(style->valuedouble);
     }
-    auto pg=cJSON_GetObjectItem(j,"default_page");if(pg){if(!cJSON_IsNumber(pg)||pg->valueint<0||pg->valueint>2)bad=true;else next.default_page=pg->valueint;}
-    auto rot=cJSON_GetObjectItem(j,"rotation_minutes");if(rot){if(!cJSON_IsNumber(rot)||(rot->valueint!=0&&rot->valueint!=5))bad=true;else next.rotation_minutes=rot->valueint;}
+    auto pg=cJSON_GetObjectItem(j,"default_page");if(pg){if(!cJSON_IsNumber(pg)||pg->valuedouble!=pg->valueint||pg->valueint<0||pg->valueint>=ContentPageCount)bad=true;else next.default_page=pg->valueint;}
+    auto rot=cJSON_GetObjectItem(j,"rotation_minutes");if(rot){if(!cJSON_IsNumber(rot)||(rot->valuedouble!=0&&rot->valuedouble!=5))bad=true;else next.rotation_minutes=rot->valueint;}
     auto night=cJSON_GetObjectItem(j,"night");if(night){if(!cJSON_IsBool(night))bad=true;else next.night=cJSON_IsTrue(night);}
     auto epoch=cJSON_GetObjectItem(j,"epoch");time_t set_epoch=cJSON_IsNumber(epoch)?(time_t)epoch->valuedouble:0;cJSON_Delete(j);
     if(bad){httpd_resp_set_status(r,"400 Bad Request");return json_reply(r,"{\"error\":\"请检查字段长度、网关地址或配置值\"}");}
@@ -74,6 +97,6 @@ void network_start(){
     if(!app.config.ssid.empty()){wifi_config_t sta={};memcpy(sta.sta.ssid,app.config.ssid.data(),app.config.ssid.size());memcpy(sta.sta.password,app.config.wifi_password.data(),app.config.wifi_password.size());ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA,&sta));}
     ESP_ERROR_CHECK(esp_wifi_start());esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);esp_sntp_setservername(0,"ntp.aliyun.com");esp_sntp_init();
     httpd_config_t config=HTTPD_DEFAULT_CONFIG();config.stack_size=8192;config.max_uri_handlers=8;ESP_ERROR_CHECK(httpd_start(&server,&config));
-    const httpd_uri_t uris[]={{.uri="/",.method=HTTP_GET,.handler=page_handler,.user_ctx=nullptr},{.uri="/api/state",.method=HTTP_GET,.handler=state_handler,.user_ctx=nullptr},{.uri="/api/config",.method=HTTP_GET,.handler=config_handler,.user_ctx=nullptr},{.uri="/api/config",.method=HTTP_POST,.handler=config_handler,.user_ctx=nullptr}};for(auto &u:uris)ESP_ERROR_CHECK(httpd_register_uri_handler(server,&u));
+    const httpd_uri_t uris[]={{.uri="/",.method=HTTP_GET,.handler=page_handler,.user_ctx=nullptr},{.uri="/api/state",.method=HTTP_GET,.handler=state_handler,.user_ctx=nullptr},{.uri="/api/config",.method=HTTP_GET,.handler=config_handler,.user_ctx=nullptr},{.uri="/api/config",.method=HTTP_POST,.handler=config_handler,.user_ctx=nullptr},{.uri="/api/gallery",.method=HTTP_GET,.handler=gallery_handler,.user_ctx=nullptr},{.uri="/api/gallery/next",.method=HTTP_POST,.handler=gallery_handler,.user_ctx=nullptr},{.uri="/api/gallery/image",.method=HTTP_GET,.handler=gallery_image_handler,.user_ctx=nullptr}};for(auto &u:uris)ESP_ERROR_CHECK(httpd_register_uri_handler(server,&u));
     xTaskCreate(network_task,"network",12288,nullptr,3,nullptr);
 }

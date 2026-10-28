@@ -52,3 +52,17 @@
 `tools/generate_calendar_data.py` 提取历法事实数据，生成 `firmware/main/calendar_data.h`，供设备离线查询。具体来源、文件SHA256与生成记录保存在 [assets/calendar/source.json](assets/calendar/source.json)；该记录同时说明起始农历月的反推依据及独立核验方法。原始下载文件仅保存在本机 `.local/calendar-cache`。仓库没有把天文台网页文字、版式或标识打包为界面素材；第三方农历库仅用于独立核验，不作为固件构建或运行依赖。
 
 此处记录事实数据的出处，不将来源说明视为香港天文台授予的开源软件许可证，也不代表其认可本工程。项目未从这些数据推断法定假日或调休安排。
+
+## Met公共领域作品与目录
+
+画廊采用The Metropolitan Museum of Art的 [Open Access数据](https://github.com/metmuseum/openaccess) 与 [官方Collection API](https://metmuseum.github.io/)。Met将指定开放元数据按CC0提供，API还提供公共领域作品图像；本工程只选择官方记录中 `isPublicDomain=true` 且有可用图片的作品。
+
+[assets/gallery/catalog.json](assets/gallery/catalog.json) 记录24幅精选作品的官方藏品ID、原始标题、作者及归属前缀、年代、媒材、credit line、藏品页面、图片地址、元数据及图片SHA256。屏幕使用的中文短标题与作者名称是本工程为小屏排版整理的译名，不能代替博物馆原始编目；原始作者归属信息保留在来源记录中。
+
+`tools/build_gallery_catalog.py` 生成固件目录 `gallery_catalog.h`。运行时设备直接从 `images.metmuseum.org` 下载JPEG，再在本机转换为黑白图；完整原始图集不嵌入固件。仓库内的画廊预览使用该目录中的公共领域作品，经同一绘图流程生成。精选目录按日期循环，不代表博物馆官方每日策展服务，也不代表博物馆认可本工程。
+
+## TJpgDec图像解码器
+
+`firmware/components/gallery_jpeg/` 使用ChaN的TJpgDec R0.03，来源为 [Espressif idf-extra-components / esp_jpeg](https://github.com/espressif/idf-extra-components/tree/d9d4f733b89389576fe7e5f58ffc321b81468b37/esp_jpeg)，固定提交 `d9d4f733b89389576fe7e5f58ffc321b81468b37`。
+
+TJpgDec文件开头保留Copyright (C) 2021, ChaN及其允许使用、修改、再分发的许可原文，源码再分发须保留该声明。上游组件的 [Apache-2.0 LICENSE](firmware/components/gallery_jpeg/LICENSE) 同时保留，不替代TJpgDec自身的第三方许可声明。原始文件及本地版本SHA256见 [source.json](firmware/components/gallery_jpeg/source.json)，本地改动见 [README](firmware/components/gallery_jpeg/README.md)：灰度解码配置、缩放参数、符号前缀和Windows整数类型兼容处理。

@@ -1,0 +1,35 @@
+{
+  "project": "TJpgDec R0.03 in Espressif esp_jpeg",
+  "repository": "https://github.com/espressif/idf-extra-components",
+  "revision": "d9d4f733b89389576fe7e5f58ffc321b81468b37",
+  "changes": [
+    "tjpgd.h uses stdint.h on Windows",
+    "tjpgdcnf.h sets portable grayscale/scaling parameters and paperdesk symbol prefix"
+  ],
+  "files": [
+    {
+      "file": "tjpgd.c",
+      "url": "https://raw.githubusercontent.com/espressif/idf-extra-components/d9d4f733b89389576fe7e5f58ffc321b81468b37/esp_jpeg/tjpgd/tjpgd.c",
+      "upstream_sha256": "789f62d6c5e7ddc1e09599a67c3686d840a2b27e44c4a33317d59d93b279ce1a",
+      "local_sha256": "789f62d6c5e7ddc1e09599a67c3686d840a2b27e44c4a33317d59d93b279ce1a"
+    },
+    {
+      "file": "tjpgd.h",
+      "url": "https://raw.githubusercontent.com/espressif/idf-extra-components/d9d4f733b89389576fe7e5f58ffc321b81468b37/esp_jpeg/tjpgd/tjpgd.h",
+      "upstream_sha256": "3b242db7108427fd64792bb9fa139a59404787385bb94fb1e569695ba84a8b81",
+      "local_sha256": "736de510f79a020d0892fd9316e9667d9348b579e663cbbe89b181f4192d0e9d"
+    },
+    {
+      "file": "tjpgdcnf.h",
+      "url": "https://raw.githubusercontent.com/espressif/idf-extra-components/d9d4f733b89389576fe7e5f58ffc321b81468b37/esp_jpeg/tjpgd/tjpgdcnf.h",
+      "upstream_sha256": "c70fffd7fbd6a95d5aff7513cf01073a7cecb4b61b4b4a860be5c3780a604be9",
+      "local_sha256": "4d00bc2efb72afa50843cb202e04f3025ee6327cb11a6b4287e1f78b32964caa"
+    },
+    {
+      "file": "LICENSE",
+      "url": "https://raw.githubusercontent.com/espressif/idf-extra-components/d9d4f733b89389576fe7e5f58ffc321b81468b37/esp_jpeg/LICENSE",
+      "upstream_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "local_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    }
+  ]
+}

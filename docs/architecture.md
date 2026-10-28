@@ -6,6 +6,8 @@
 SHTC3 ──I²C──┐
 PCF85063 ────┤  ESP32-S3 ──SPI── 800×480墨水屏（竖屏480×800）
 三向拨轮 ────┘     │
+                  ├── Wi-Fi / HTTPS ── Met官方JPEG图片
+                  │                   ESP32解码、黑白转换、缓存
                   │ Wi-Fi / HTTP，使用网关令牌
                   ▼
              电脑 Paperdesk 网关
@@ -13,11 +15,11 @@ PCF85063 ────┤  ESP32-S3 ──SPI── 800×480墨水屏（竖屏480
                   └── 本机 Codex app-server：只读账号额度
 ```
 
-设备网页负责网络、网关连接、显示偏好和校时；电脑网页负责天气凭据与服务状态。天气API凭据保留在电脑上，Codex登录状态不复制到设备。0.2.0不再包含订单与快递路径。
+设备网页负责网络、网关连接、显示偏好、校时及画廊状态；电脑网页负责天气凭据与服务状态。天气API凭据保留在电脑上，Codex登录状态不复制到设备。画廊独立直连官方图片服务，不携带网关令牌或其他账号凭据。0.2.0不再包含订单与快递路径。
 
 ## 界面与绘图
 
-首页集中显示日期时间、板载温湿度、天气和Codex剩余额度。0.5.0将原Codex详情页替换为月历，当前三个内容页为首页、天气、月历；Codex的首页显示与网关同步保留。设置通过长按进入，默认页只能选三个内容页。
+首页集中显示日期时间、板载温湿度、天气和Codex剩余额度。0.5.0将原Codex详情页替换为月历，0.6.0增加画廊；当前四个内容页为首页、天气、月历、画廊，Codex的首页显示与网关同步保留。上下拨与自动轮播只循环四个内容页，设置通过长按进入并暂停轮播，默认页也只能选四个内容页。
 
 画布为48000字节的1位黑白位图，逻辑480×800转换为面板原生800×480。中文字库由Noto Sans SC离线生成，设计字号与字格尺寸分开：字格包含完整上伸部和下伸部，避免底部笔画裁切。天气图标使用有限的纯黑白形状，按可见像素边界居中；文字与数字以实际字形边界对齐。
 
@@ -39,6 +41,18 @@ PCF85063 ────┤  ESP32-S3 ──SPI── 800×480墨水屏（竖屏480
 
 `tools/generate_calendar_data.py` 从官方年表生成 `firmware/main/calendar_data.h`，以2,475个农历月起点和4,800个节气日期编码，打包数组占29,100字节，另有少量名称与边界常量。来源、SHA256及生成记录保存在 `assets/calendar/source.json`。正常构建直接使用生成的头文件，不需要Python或网络；原始年表缓存保存在已忽略的 `.local/calendar-cache`，不需要随设备运行。
 
+## 直连黑白画廊
+
+画廊使用24幅Met公共领域作品的精选目录，中文短译名与原始编目事实保存在 `assets/gallery/catalog.json`，由 `tools/build_gallery_catalog.py` 离线生成 `gallery_catalog.h`。这是有限目录按日循环，不是依赖运行时搜索的无限作品流；每日选择取自设备的中国标准时间日期，短按可以请求下一幅。
+
+独立画廊任务通过HTTPS直接获取 `images.metmuseum.org` 上的JPEG，启用证书验证、限定图片域名、禁用自动重定向，并对下载时间与大小设上限。此路径无需电脑网关、API Key或SD卡，源图片地址已经过官方元数据核对。下载失败时尝试有限数量的后续候选；自动更新失败后延迟重试，手动连续换画也有限流。
+
+`gallery_image.cpp` 使用TJpgDec在设备上解码baseline JPEG，限制输入为768 KiB、原图每边不超过4096px，按需要缩小解码尺寸并限制灰度工作内存。图片保持宽高比，居中适配432×544区域，转换为1位黑白位图后交给480×800页面绘制。渐进式或损坏的JPEG被拒绝，不覆盖此前有效画作；固件不把高分辨率JPEG作为屏幕帧长期保留。
+
+成功获取的黑白位图、作品身份和取得时间保存在独立NVS缓存中，启动时校验并恢复。断网或更新失败时继续显示上一幅，状态与取得时间单独保留；从未下载成功时显示空状态。画作更新请求全刷，其他页面不会提前消费该请求。设备网页的“画廊”标签展示状态、作品信息、取得时间与官方来源，并提供换画按钮。
+
+画廊与天气/Codex同步相互独立；电脑网关离线不阻止画廊联网更新。编译只使用目录和解码器源码，源图缓存 `.local/gallery-source` 仅供本地主机验证，不参与固件构建。
+
 ## 文件与职责
 
 | 文件 | 职责 |
@@ -50,6 +64,11 @@ PCF85063 ────┤  ESP32-S3 ──SPI── 800×480墨水屏（竖屏480
 | `firmware/main/weather_layout.h` | 温度区间校验、三日共用刻度及缓存日期标签 |
 | `firmware/main/calendar.cpp` / `calendar.h` | 公历月排布、离线农历与节气查询 |
 | `firmware/main/calendar_data.h` | 随固件嵌入的离线历法对照数据 |
+| `firmware/main/gallery.cpp` / `gallery.h` | 画廊独立下载任务、每日选择、状态与持久缓存 |
+| `firmware/main/gallery_catalog.h` | 24幅精选作品的元数据与官方图片地址 |
+| `firmware/main/gallery_image.cpp` / `gallery_image.h` | 有限内存JPEG解码、等比缩放与黑白转换 |
+| `firmware/main/gallery_cache.h` | 画作缓存记录编码与完整性校验 |
+| `firmware/components/gallery_jpeg/` | 固定来源版本的TJpgDec解码器及许可 |
 | `firmware/main/network.cpp` | NVS、AP/STA、NTP、设备HTTP服务与网关拉取 |
 | `firmware/main/web.html` | 内嵌设备配置页面 |
 | `bridge/server.py` | Python标准库网关、上游缓存、鉴权、统一快照 |
@@ -59,10 +78,13 @@ PCF85063 ────┤  ESP32-S3 ──SPI── 800×480墨水屏（竖屏480
 | `tools/generate_fonts.py` | 中文与通用字库的离线转换和完整性检查 |
 | `tools/generate_theme_fonts.py` | 首页、天气详情及月历数字字体的离线转换和完整性检查 |
 | `tools/generate_calendar_data.py` | 将香港天文台公历农历对照表转换为固件离线数据 |
+| `tools/build_gallery_catalog.py` | 生成精选作品目录，可选核验官方元数据及JPEG缓存 |
 
 ## 接口
 
 设备：`GET /` 显示网页，`GET /api/state` 返回状态；`GET/POST /api/config` 需 `X-Paperdesk-Token` 管理码。读取配置时不返回已保存密码或网关令牌，只返回是否已保存。`home_style` 与 `weather_style` 作为独立显示偏好随配置读写，各自只接受整数0或1；省略字段保留原值。
+
+画廊：`GET /api/gallery` 返回当前作品、取得时间、缓存与忙碌状态；`POST /api/gallery/next` 请求后台换画；`GET /api/gallery/image` 提供当前432×544黑白PBM图供验证，尚未就绪时返回404。三个接口均需设备管理码。设备网页“显示”中的开机默认页允许0–3（首页、天气、月历、画廊），不允许设置页。
 
 网关：`GET /` 显示网页；`GET /v1/snapshot` 返回 `schema: 1` 的天气及Codex快照；`GET/POST /v1/config` 读取/更新配置；`POST /v1/refresh` 请求后台同步。所有 `/v1/` 接口需 `Authorization: Bearer <token>`。读取配置不回传已保存的API Key或网关令牌。
 
@@ -80,4 +102,4 @@ PCF85063 ────┤  ESP32-S3 ──SPI── 800×480墨水屏（竖屏480
 | PCF85063 | 地址0x51 |
 | 三向拨轮 | 上GPIO4、中GPIO5、下GPIO6，低电平有效 |
 
-NVS保存设备设置和间隔写入的快照缓存。字体直接嵌入Flash，不使用SD卡。`.local`、`backups`、生成效果图及构建目录均不进入源码仓库；本机设备序列号、账号凭据、设备照片和局域网配置也不需要提交。
+NVS保存设备设置、间隔写入的天气/Codex快照及最近一幅画廊黑白图。字体直接嵌入Flash，不使用SD卡。`.local`、`backups`、生成概念图及构建目录均不进入源码仓库；本机设备序列号、账号凭据、设备照片和局域网配置也不需要提交。文档中的原生界面预览可随源码提供，作品出处另行记录。

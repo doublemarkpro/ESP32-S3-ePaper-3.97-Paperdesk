@@ -1,6 +1,6 @@
-idf_component_register(SRCS "app.cpp" "board.cpp" "render.cpp" "calendar.cpp" "network.cpp"
+idf_component_register(SRCS "app.cpp" "board.cpp" "render.cpp" "calendar.cpp" "network.cpp" "gallery.cpp" "gallery_image.cpp"
     INCLUDE_DIRS "."
-    REQUIRES epaper esp_driver_i2c esp_driver_gpio esp_timer esp_wifi esp_netif esp_event esp_http_server esp_http_client nvs_flash json lwip mbedtls
+    REQUIRES epaper esp_driver_i2c esp_driver_gpio esp_timer esp_wifi esp_netif esp_event esp_http_server esp_http_client nvs_flash json lwip mbedtls gallery_jpeg
     EMBED_FILES "web.html" "font20.bin" "font24.bin" "font32.bin" "font56.bin" "font112.bin" "font144.bin"
         "theme_a_clock.bin" "theme_a_large.bin" "theme_a_value.bin"
         "theme_b_clock.bin" "theme_b_large.bin" "theme_b_value.bin"
