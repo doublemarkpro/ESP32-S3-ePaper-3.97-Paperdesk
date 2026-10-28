@@ -1,6 +1,7 @@
 #include "paperdesk.h"
 #include "epaper_port.h"
 #include "weather_icons.h"
+#include "weather_layout.h"
 #include "esp_log.h"
 #include <algorithm>
 #include <climits>
@@ -21,13 +22,16 @@ extern const uint8_t theme_a_value[] asm("_binary_theme_a_value_bin_start");
 extern const uint8_t theme_b_clock[] asm("_binary_theme_b_clock_bin_start");
 extern const uint8_t theme_b_large[] asm("_binary_theme_b_large_bin_start");
 extern const uint8_t theme_b_value[] asm("_binary_theme_b_value_bin_start");
+extern const uint8_t weather_serif[] asm("_binary_weather_serif_bin_start");
+extern const uint8_t weather_sans[] asm("_binary_weather_sans_bin_start");
 namespace {
 constexpr int AClock=201, ALarge=202, AValue=203, BClock=204, BLarge=205, BValue=206;
+constexpr int WeatherSerif=207, WeatherSans=208;
 uint8_t frame[48000];
 uint16_t u16(const uint8_t* p) { return p[0] | (p[1] << 8); }
 uint32_t u32(const uint8_t* p) { return u16(p) | (uint32_t(u16(p+2)) << 16); }
 const uint8_t* font(int size) {
-    switch(size) { case AClock:return theme_a_clock; case ALarge:return theme_a_large; case AValue:return theme_a_value; case BClock:return theme_b_clock; case BLarge:return theme_b_large; case BValue:return theme_b_value; case 20:return f20; case 32:return f32; case 56:return f56; case 112:return f112; case 144:return f144; default:return f24; }
+    switch(size) { case WeatherSerif:return weather_serif; case WeatherSans:return weather_sans; case AClock:return theme_a_clock; case ALarge:return theme_a_large; case AValue:return theme_a_value; case BClock:return theme_b_clock; case BLarge:return theme_b_large; case BValue:return theme_b_value; case 20:return f20; case 32:return f32; case 56:return f56; case 112:return f112; case 144:return f144; default:return f24; }
 }
 uint32_t decode(const char*& p) {
     uint8_t c=*p++; if(c<128)return c;
@@ -115,10 +119,9 @@ void multiline(int x,int y,const std::string& s,int size=24,int rows=3,int w=416
 }
 // A shared baseline keeps °C and % attached to their numerals. Use the ink
 // bounds of the complete group to center its contents inside the weather row.
-void number_unit(int x,int center_y,int area_width,const std::string& number,const std::string& unit,int number_size=56,bool align_right=false) {
-    int unit_size=24;
+void number_unit(int x,int center_y,int area_width,const std::string& number,const std::string& unit,int number_size=56,bool align_right=false,int unit_size=24) {
     while(number_size>32&&width(number,number_size)+width(unit,unit_size)+4>area_width)
-        number_size=number_size==ALarge?AValue:number_size==BLarge?BValue:32;
+        number_size=number_size==WeatherSerif?BLarge:number_size==WeatherSans?ALarge:number_size==ALarge?AValue:number_size==BLarge?BValue:32;
     auto nb=measure(number,number_size),ub=measure(unit,unit_size);
     int nbase=u16(font(number_size)+10),ubase=u16(font(unit_size)+10);
     int top=std::min(nb.top-nbase,ub.top-ubase),bottom=std::max(nb.bottom-nbase,ub.bottom-ubase);
@@ -215,12 +218,93 @@ void draw_home(const AppData& a,const cJSON* weather,const cJSON* codex,const cJ
         }
     }
 }
+// A two-line centered label preserves long condition names without tiny type.
+void centered_lines(int x,int y,int w,int h,const std::string& value,int size=20) {
+    if(width(value,size)<=w){in_box(x,y,w,h,value,size);return;}
+    std::string first;const char* p=value.c_str();const char* rest=p;
+    while(*p){const char* start=p;decode(p);std::string next(start,p-start);if(width(first+next,size)>w){rest=start;break;}first+=next;rest=p;}
+    in_box(x,y,w,h/2,first,size);in_box(x,y+h/2,w,h-h/2,rest,size);
+}
+std::string field(const cJSON* object,const char* key) {
+    std::string value=json_string(object,key);return value.empty()?"--":value;
+}
+std::string range_text(const weather_ui::Range& range) {
+    return range.valid?std::to_string(range.low)+"–"+std::to_string(range.high)+"°C":"-- / --°C";
+}
+void endpoint(int x,int y) {
+    for(int dy=-4;dy<=4;++dy)for(int dx=-4;dx<=4;++dx){int r=dx*dx+dy*dy;if(r<=16)pixel(x+dx,y+dy,r>=5);}
+}
+void centered_number(int center,int y,const std::string& value,int left=224,int right_edge=448) {
+    auto b=measure(value,20);int start=std::clamp(center-b.w()/2,left,right_edge-b.w());label(start,y,value,20,right_edge-left);
+}
+void draw_weather(const AppData& a,const cJSON* weather,bool available,bool stale,time_t now) {
+    bool editorial=a.config.weather_style==0,clock_ok=now>=1704067200;
+    tm local={};localtime_r(&now,&local);
+    bool night=clock_ok&&(local.tm_hour<6||local.tm_hour>=18);
+    std::array<std::string,3> current_dates;
+    for(int i=0;i<3&&clock_ok;++i)current_dates[i]=timestamp(now+i*86400,"%Y-%m-%d");
+    label(32,40,available?field(weather,"city"):"天气",32,216);
+    if(clock_ok){const char* weekdays[]={"日","一","二","三","四","五","六"};char date[48];snprintf(date,sizeof(date),"%d月%d日 周%s",local.tm_mon+1,local.tm_mday,weekdays[local.tm_wday]);right(448,49,date,20,180);}
+    else right(448,49,"请先校时",20,180);
+    if(editorial)fill(32,98,416,1);
+    if(!available){
+        draw_weather_icon(184,160,112,-1,"",false,pixel);
+        in_box(32,305,416,50,"天气尚未连接",32);
+        multiline(32,402,json_string(weather,"error","请在电脑网关填写和风天气信息"),24,4);
+        label(32,650,"长按拨轮进入设置",20);
+    }else{
+        auto days=cJSON_GetObjectItemCaseSensitive(weather,"daily");
+        std::array<const cJSON*,3> forecast;std::array<weather_ui::Range,3> ranges;std::array<std::string,3> names;
+        for(int i=0;i<3;++i){forecast[i]=cJSON_GetArrayItem(days,i);ranges[i]=weather_ui::range(json_string(forecast[i],"min"),json_string(forecast[i],"max"));names[i]=weather_ui::day_label(json_string(forecast[i],"date"),current_dates);}
+        std::string wind=field(weather,"wind"),scale=field(weather,"wind_scale");if(scale!="--")wind+=" "+scale+"级";
+        if(editorial){
+            number_unit(32,220,260,field(weather,"temp"),"°C",WeatherSerif,false,32);
+            draw_weather_icon(320,164,112,weather_code(weather),json_string(weather,"text"),night,pixel);
+            centered_lines(304,286,144,52,field(weather,"text"),24);
+            in_box(304,345,144,30,range_text(ranges[0]),20);
+            label(32,386,"体感 "+field(weather,"feels_like")+"°C",20,230);right(448,386,"湿度 "+field(weather,"humidity")+"%",20,170);
+            label(32,420,wind,20);fill(32,456,416,1);label(32,478,"未来三天",24);
+            for(int i=0;i<3;++i){int x=32+i*144;if(i)fill(x-8,520,1,190);
+                in_box(x,516,128,30,names[i],20);
+                draw_weather_icon(x+40,559,48,weather_code(forecast[i]),json_string(forecast[i],"text"),false,pixel);
+                centered_lines(x,623,128,48,field(forecast[i],"text"),20);
+                int size=width(range_text(ranges[i]),24)<=128?24:20;in_box(x,684,128,30,range_text(ranges[i]),size);
+            }
+        }else{
+            draw_weather_icon(52,158,112,weather_code(weather),json_string(weather,"text"),night,pixel);
+            centered_lines(32,293,152,60,field(weather,"text"),24);
+            number_unit(218,214,230,field(weather,"temp"),"°C",WeatherSans,false,32);
+            label(218,307,"体感 "+field(weather,"feels_like")+"°C",20,230);
+            label(32,382,wind,20,256);right(448,382,"湿度 "+field(weather,"humidity")+"%",20,160);
+            fill(32,426,416,1);label(32,450,"三日温差",24);right(448,454,"最低 / 最高 °C",20,192);
+            auto axis=weather_ui::shared_axis(ranges);constexpr int left=244,right_edge=432;
+            for(int i=0;i<3;++i){int cy=510+i*68;
+                in_box(32,cy-16,60,32,names[i],20,true);
+                draw_weather_icon(98,cy-24,48,weather_code(forecast[i]),json_string(forecast[i],"text"),false,pixel);
+                centered_lines(156,cy-24,64,48,field(forecast[i],"text"),20);
+                if(!ranges[i].valid){in_box(232,cy-14,216,28,"暂无数据",20);continue;}
+                int lo=axis.project(ranges[i].low,left,right_edge),hi=axis.project(ranges[i].high,left,right_edge);
+                fill(lo,cy-1,hi-lo+1,3);endpoint(lo,cy);endpoint(hi,cy);
+                std::string low=std::to_string(ranges[i].low),high=std::to_string(ranges[i].high);
+                if(ranges[i].low==ranges[i].high)centered_number(lo,cy-29,low);
+                else if(hi-lo<(width(low,20)+width(high,20))/2+12)centered_number((lo+hi)/2,cy-29,low+"–"+high);
+                else{centered_number(lo,cy-29,low);centered_number(hi,cy-29,high);}
+            }
+            if(axis.valid){
+                fill(left,682,right_edge-left+1,1);
+                for(int i=0;i<3;++i){int x=left+(right_edge-left)*i/2;fill(x,678,1,9);char tick[20];double value=axis.low+(axis.high-axis.low)*i/2.0;if(value==int(value))snprintf(tick,sizeof(tick),"%d",int(value));else snprintf(tick,sizeof(tick),"%.1f",value);centered_number(x,698,tick);}
+            }else in_box(232,683,216,30,"暂无温度预报",20);
+        }
+    }
+    if(available)in_box(32,734,416,28,std::string(stale?"缓存 · ":"和风天气 · ")+timestamp(json_int(weather,"updated_at"),stale?"%m/%d %H:%M":"%H:%M")+" 更新",20);
+    in_box(32,768,416,28,"按下同步 · 长按设置",20);
+}
 } // namespace
 
 void draw_screen(const View& view,bool full) {
     AppData a;{std::lock_guard<std::mutex> lock(app_mutex);a=app;}
-    memset(frame,255,sizeof(frame));time_t now=time(nullptr);tm local={};localtime_r(&now,&local);
-    bool clock_ok=now>=1704067200,night=clock_ok&&(local.tm_hour<6||local.tm_hour>=18);
+    memset(frame,255,sizeof(frame));time_t now=time(nullptr);
+    bool clock_ok=now>=1704067200;
     cJSON* snapshot=cJSON_Parse(a.snapshot.c_str());
     auto weather=cJSON_GetObjectItemCaseSensitive(snapshot,"weather");auto codex=cJSON_GetObjectItemCaseSensitive(snapshot,"codex");
     auto windows=cJSON_GetObjectItemCaseSensitive(codex,"windows");
@@ -233,26 +317,7 @@ void draw_screen(const View& view,bool full) {
     if(view.page==0){
         draw_home(a,weather,codex,windows,weather_ok,quota_ok,weather_stale,quota_stale,now);
     }else if(view.page==1){
-        label(32,36,"天气",32);right(448,44,clock_ok?timestamp(now,"%H:%M"):"--:--",20);
-        if(weather_ok){
-            draw_weather_icon(36,117,80,weather_code(weather),json_string(weather,"text"),night,pixel);
-            label(144,125,json_string(weather,"city"),32,290);label(144,172,json_string(weather,"text"),24,290);
-            number_unit(32,280,240,json_string(weather,"temp","--"),"°C",112);
-            label(285,263,"体感 "+std::string(json_string(weather,"feels_like","--"))+"°C",20,163);
-            label(32,361,std::string(json_string(weather,"wind"))+" "+json_string(weather,"wind_scale")+"级",20,265);
-            right(448,361,"湿度 "+std::string(json_string(weather,"humidity"))+"%",20,145);
-            fill(32,408,416,1);label(32,432,"未来三天",24);
-            auto days=cJSON_GetObjectItemCaseSensitive(weather,"daily");
-            for(int i=0;i<std::min(3,cJSON_GetArraySize(days));i++){
-                auto day=cJSON_GetArrayItem(days,i);int cy=499+i*66;
-                in_box(32,cy-20,52,40,i==0?"今天":i==1?"明天":"后天",20,true);
-                draw_weather_icon(101,cy-24,48,weather_code(day),json_string(day,"text"),false,pixel);
-                in_box(164,cy-20,130,40,json_string(day,"text"),20,true);
-                right(448,cy-10,std::string(json_string(day,"min"))+" / "+json_string(day,"max")+"°",20,145);
-            }
-            label(32,680,std::string(weather_stale?"缓存 · ":"")+"和风天气 "+timestamp(json_int(weather,"updated_at"),"%H:%M"),20);
-        }else{draw_weather_icon(200,154,80,-1,"",false,pixel);in_box(32,280,416,44,"天气尚未连接",32);multiline(32,366,json_string(weather,"error","请在电脑网关填写和风天气信息"),24,4);label(32,630,"长按拨轮进入设置",20);}
-        detail_footer("天气",1,"按下同步 · 长按设置");
+        draw_weather(a,weather,weather_ok,weather_stale,now);
     }else if(view.page==2){
         label(32,36,"Codex",32);right(448,44,clock_ok?timestamp(now,"%H:%M"):"--:--",20);
         if(quota_ok){auto bucket=cJSON_GetArrayItem(windows,std::min(view.selection,cJSON_GetArraySize(windows)-1));int remaining=std::clamp(json_int(bucket,"remaining"),0,100);
@@ -272,10 +337,10 @@ void draw_screen(const View& view,bool full) {
             multiline(32,595,a.gateway_error.empty()?"电脑网关已连接":a.gateway_error,20,2);
             label(32,745,"短按返回设置 · 长按回首页",20);
         }else{
-            const char* labels[]={"网络与手机设置","首页风格","开机默认页面","自动轮播","夜间暂停轮播","立即同步数据"};
-            std::string values[]={"查看",a.config.home_style==1?"编辑式微衬线":"精密桌面钟",pages[std::clamp(a.config.default_page,0,2)],a.config.rotation_minutes?"5分钟":"关闭",a.config.night?"开启":"关闭","请求"};
-            for(int i=0;i<6;i++){int y=145+i*70;if(view.selection==i)round_box(24,y-16,432,64,8,2);label(40,y,labels[i],24,270);right(432,y+3,values[i],20,160);}
-            label(32,590,"管理码："+a.config.admin_token,24);label(32,638,"http://"+a.ip,20);label(32,690,"纸间 Paperdesk 0.3.0",20);label(32,751,"拨动选择 · 短按修改 · 长按回首页",20);
+            const char* labels[]={"网络与手机设置","首页风格","天气风格","开机默认页面","自动轮播","夜间暂停轮播","立即同步数据"};
+            std::string values[]={"查看",a.config.home_style==1?"编辑式微衬线":"精密桌面钟",a.config.weather_style==1?"温差观测":"天气日报",pages[std::clamp(a.config.default_page,0,2)],a.config.rotation_minutes?"5分钟":"关闭",a.config.night?"开启":"关闭","请求"};
+            for(int i=0;i<7;i++){int y=130+i*62;if(view.selection==i)round_box(24,y-13,432,56,8,2);label(40,y,labels[i],24,270);right(432,y+3,values[i],20,160);}
+            label(32,580,"管理码："+a.config.admin_token,24);label(32,628,"http://"+a.ip,20);label(32,680,"纸间 Paperdesk 0.4.0",20);label(32,751,"拨动选择 · 短按修改 · 长按回首页",20);
         }
     }
     cJSON_Delete(snapshot);epaper_timed_out=false;

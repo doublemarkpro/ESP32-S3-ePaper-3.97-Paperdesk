@@ -25,6 +25,10 @@ PCF85063 ────┤  ESP32-S3 ──SPI── 800×480墨水屏（竖屏480
 
 `home_style` 同时由拨轮设置和设备网页修改，保存在NVS。旧配置缺少该字段时回退到0；HTTP写入只接受整数0或1。风格变化置位全刷请求，绘图循环消费请求后全屏刷新，避免只替换部分像素留下旧布局残影。首页的Codex数值与进度条都表示剩余比例。
 
+0.4.0为天气详情增加独立的 `weather_style`：0为“天气日报”，使用DM Serif Display大温度与三列预报；1为“温差观测”，使用Barlow Condensed大温度与三天温度区间横条。两款天气页都读取同一份现有天气快照，不增加上游接口。横条在三天共用的温度刻度上绘制每天最低至最高温度的区间，不插值为逐时数据；缺失值不转换成0℃，缺少有效区间时不绘制横条。
+
+拨轮设置中的“天气风格”和设备网页“显示”中的“天气页风格”读写同一字段。`weather_style` 与 `home_style` 分别保存在NVS中，独立校验并切换；旧配置缺失时默认0。每种风格的变更保留各自的全刷请求，直到对应页面下一次绘制时消费，避免在其他页面提前清除请求。
+
 首页不显示重复时间、IP、调试文案或常驻操作说明。配网信息放在设置中，错误状态与缓存时间保持可见。
 
 ## 文件与职责
@@ -35,6 +39,7 @@ PCF85063 ────┤  ESP32-S3 ──SPI── 800×480墨水屏（竖屏480
 | `firmware/main/board.cpp` | I²C、温湿度CRC检查、RTC、按键去抖和长按 |
 | `firmware/main/render.cpp` | 黑白画布、位图文字、首页及详情和设置布局 |
 | `firmware/main/weather_icons.h` | 天气图标、代码映射与居中绘制 |
+| `firmware/main/weather_layout.h` | 温度区间校验、三日共用刻度及缓存日期标签 |
 | `firmware/main/network.cpp` | NVS、AP/STA、NTP、设备HTTP服务与网关拉取 |
 | `firmware/main/web.html` | 内嵌设备配置页面 |
 | `bridge/server.py` | Python标准库网关、上游缓存、鉴权、统一快照 |
@@ -42,15 +47,17 @@ PCF85063 ────┤  ESP32-S3 ──SPI── 800×480墨水屏（竖屏480
 | `tools/device.py` | 以本地指定序列号精确匹配设备、烧录和串口日志 |
 | `tools/render_preview.py` | 编译实际绘图代码，生成原生分辨率预览 |
 | `tools/generate_fonts.py` | 中文与通用字库的离线转换和完整性检查 |
-| `tools/generate_theme_fonts.py` | 两套首页数字字体的离线转换和完整性检查 |
+| `tools/generate_theme_fonts.py` | 首页与天气详情所用两套数字字体的离线转换和完整性检查 |
 
 ## 接口
 
-设备：`GET /` 显示网页，`GET /api/state` 返回状态；`GET/POST /api/config` 需 `X-Paperdesk-Token` 管理码。读取配置时不返回已保存密码或网关令牌，只返回是否已保存。`home_style` 作为显示偏好随配置读写，取值为0或1。
+设备：`GET /` 显示网页，`GET /api/state` 返回状态；`GET/POST /api/config` 需 `X-Paperdesk-Token` 管理码。读取配置时不返回已保存密码或网关令牌，只返回是否已保存。`home_style` 与 `weather_style` 作为独立显示偏好随配置读写，各自只接受整数0或1；省略字段保留原值。
 
 网关：`GET /` 显示网页；`GET /v1/snapshot` 返回 `schema: 1` 的天气及Codex快照；`GET/POST /v1/config` 读取/更新配置；`POST /v1/refresh` 请求后台同步。所有 `/v1/` 接口需 `Authorization: Bearer <token>`。读取配置不回传已保存的API Key或网关令牌。
 
 上游更新时间与网关快照生成时间分开保存。上游失败时可保留旧值，但带 `stale` 和错误描述；不能仅因设备成功拉取快照就将上游缓存称为最新数据。天气快照包含实况及预报的图标代码，设备根据代码选取图形。
+
+天气详情仅使用快照现有的温度、天气描述、体感温度、风向、风力等级、湿度及三日最低/最高温度。预报日期保留上游日期，只有与设备当前本地日期相符时才能标注“今天”；跨日缓存仍显示其实际日期，不因数组位置或读取缓存的时间重新贴标签。
 
 ## 硬件分配
 

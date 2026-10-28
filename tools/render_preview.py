@@ -7,7 +7,7 @@ OUT=ROOT/'.local/preview';OUT.mkdir(parents=True,exist_ok=True)
 compiler=shutil.which('g++') or 'D:/mingw64/bin/g++.exe'
 symbols=OUT/'font_symbols.cpp'
 with symbols.open('w',encoding='utf-8') as f:
-    for name in [f'font{size}' for size in (20,24,32,56,112,144)]+[f'theme_{style}_{role}' for style in ('a','b') for role in ('clock','large','value')]:
+    for name in [f'font{size}' for size in (20,24,32,56,112,144)]+[f'theme_{style}_{role}' for style in ('a','b') for role in ('clock','large','value')]+['weather_serif','weather_sans']:
         data=(ROOT/f'firmware/main/{name}.bin').read_bytes()
         f.write(f'extern const unsigned char {name}[] asm("_binary_{name}_bin_start") = {{')
         f.write(','.join(str(x) for x in data));f.write('};\n')

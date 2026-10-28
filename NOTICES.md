@@ -21,7 +21,7 @@
 
 ## 首页数字字体
 
-两套首页的数字字库由 `tools/generate_theme_fonts.py` 转换为 `firmware/main/theme_*.bin`。两种字体均按 SIL Open Font License 1.1 提供，生成的位图字库也保留适用的字体许可要求。
+两套首页及天气页的数字字库由 `tools/generate_theme_fonts.py` 转换为 `firmware/main/theme_*.bin`、`weather_serif.bin` 和 `weather_sans.bin`。两种字体均按 SIL Open Font License 1.1 提供，生成的位图字库也保留适用的字体许可要求。
 
 | 风格 | 字体与来源 | 版权与完整许可 |
 | --- | --- | --- |

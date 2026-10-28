@@ -4,7 +4,7 @@
 #include <cstdio>
 AppData app;
 std::mutex app_mutex;
-std::atomic<bool> dirty{false},force_sync{false},full_refresh{false};
+std::atomic<bool> dirty{false},force_sync{false},full_refresh{false},weather_full_refresh{false};
 QueueHandle_t button_queue=nullptr;
 bool epaper_timed_out=false;
 static std::string output;
@@ -27,11 +27,14 @@ int main(int argc,char**argv){
         }
     }
     for(int style=0;style<2;style++){app.config.home_style=style;View v;output=std::string(argv[1])+"/home-style-"+(style?"b":"a")+".pbm";draw_screen(v,true);}
+    auto weather_previews=[&](const std::string& prefix){for(int style=0;style<2;style++){app.config.weather_style=style;View page;page.page=1;output=std::string(argv[1])+"/"+prefix+(style?"-ranges":"-editorial")+".pbm";draw_screen(page,true);}};
+    weather_previews("weather");
     auto j=cJSON_Parse(app.snapshot.c_str());auto w=cJSON_GetObjectItem(j,"weather");
     cJSON_SetValuestring(cJSON_GetObjectItem(w,"city"),"呼和浩特");cJSON_SetValuestring(cJSON_GetObjectItem(w,"text"),"雨夹雪");
     cJSON_SetValuestring(cJSON_GetObjectItem(w,"icon"),"404");cJSON_SetValuestring(cJSON_GetObjectItem(w,"temp"),"-12");
     cJSON_AddBoolToObject(w,"stale",true);app.temperature=-12.3;app.humidity=100;
     char* value=cJSON_PrintUnformatted(j);app.snapshot=value;cJSON_free(value);cJSON_Delete(j);
+    weather_previews("weather-edge");
     View v;
     for(int style=0;style<2;style++){app.config.home_style=style;output=std::string(argv[1])+"/edge-"+(style?"b":"a")+".pbm";draw_screen(v,true);}
     for(int remaining:{0,100}){
@@ -40,7 +43,14 @@ int main(int argc,char**argv){
         value=cJSON_PrintUnformatted(j);app.snapshot=value;cJSON_free(value);cJSON_Delete(j);
         for(int style=0;style<2;style++){app.config.home_style=style;output=std::string(argv[1])+"/quota-"+std::to_string(remaining)+(style?"-b":"-a")+".pbm";draw_screen(v,true);}
     }
-    app.snapshot="{}";for(int style=0;style<2;style++){app.config.home_style=style;output=std::string(argv[1])+"/empty-"+(style?"b":"a")+".pbm";draw_screen(v,true);}
+    j=cJSON_Parse(app.snapshot.c_str());w=cJSON_GetObjectItem(j,"weather");auto days=cJSON_GetObjectItem(w,"daily");
+    cJSON_SetValuestring(cJSON_GetObjectItem(w,"text"),"雷阵雨伴有冰雹");cJSON_SetValuestring(cJSON_GetObjectItem(w,"temp"),"-100");
+    cJSON_SetValuestring(cJSON_GetObjectItem(cJSON_GetArrayItem(days,0),"date"),"2026-10-27");
+    for(int i=0;i<3;++i){auto day=cJSON_GetArrayItem(days,i);cJSON_SetValuestring(cJSON_GetObjectItem(day,"min"),"-12");cJSON_SetValuestring(cJSON_GetObjectItem(day,"max"),"-12");cJSON_SetValuestring(cJSON_GetObjectItem(day,"text"),"雷阵雨伴有冰雹");}
+    value=cJSON_PrintUnformatted(j);app.snapshot=value;cJSON_free(value);cJSON_Delete(j);weather_previews("weather-equal");
+    j=cJSON_Parse(app.snapshot.c_str());days=cJSON_GetObjectItem(cJSON_GetObjectItem(j,"weather"),"daily");cJSON_SetValuestring(cJSON_GetObjectItem(cJSON_GetArrayItem(days,0),"min"),"");cJSON_SetValuestring(cJSON_GetObjectItem(cJSON_GetArrayItem(days,1),"max"),"oops");cJSON_DeleteItemFromArray(days,2);
+    value=cJSON_PrintUnformatted(j);app.snapshot=value;cJSON_free(value);cJSON_Delete(j);weather_previews("weather-missing");
+    app.snapshot="{}";weather_previews("weather-empty");for(int style=0;style<2;style++){app.config.home_style=style;output=std::string(argv[1])+"/empty-"+(style?"b":"a")+".pbm";draw_screen(v,true);}
     app.env_ok=false;for(int style=0;style<2;style++){app.config.home_style=style;output=std::string(argv[1])+"/sensor-unavailable-"+(style?"b":"a")+".pbm";draw_screen(v,true);}
     v.page=3;v.details=true;output=std::string(argv[1])+"/network-settings.pbm";draw_screen(v,true);
 }

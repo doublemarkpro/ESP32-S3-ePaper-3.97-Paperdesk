@@ -16,7 +16,7 @@ inline tm* localtime_r(const time_t* input,tm* output){localtime_s(output,input)
 
 struct Config {
     std::string ssid, wifi_password, gateway, gateway_token, admin_token;
-    int default_page=0, rotation_minutes=0, home_style=0;
+    int default_page=0, rotation_minutes=0, home_style=0, weather_style=0;
     bool night=true;
 };
 struct AppData {
@@ -29,7 +29,7 @@ struct AppData {
 };
 extern AppData app;
 extern std::mutex app_mutex;
-extern std::atomic<bool> dirty, force_sync, full_refresh;
+extern std::atomic<bool> dirty, force_sync, full_refresh, weather_full_refresh;
 extern QueueHandle_t button_queue;
 enum Key { Up=1, Press=2, Down=3, Back=4 };
 struct View { int page=0, selection=0, mode=0; bool details=false; };

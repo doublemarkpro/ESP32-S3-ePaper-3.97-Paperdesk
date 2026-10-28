@@ -1,4 +1,4 @@
-"""Rebuild the two numeric theme font sets with Pillow (Python 3.10+).
+"""Rebuild the numeric home and weather fonts with Pillow (Python 3.10+).
 
 Sources and OFL licenses live in assets/fonts/<family>/source.json and OFL.txt.
 Use --download to fetch the exact source revisions when local TTFs are absent.
@@ -25,6 +25,8 @@ SPECS = (
     ('theme_b_clock', 'dm-serif-display', 'DMSerifDisplay-Regular.ttf', 168),
     ('theme_b_large', 'dm-serif-display', 'DMSerifDisplay-Regular.ttf', 104),
     ('theme_b_value', 'dm-serif-display', 'DMSerifDisplay-Regular.ttf', 68),
+    ('weather_serif', 'dm-serif-display', 'DMSerifDisplay-Regular.ttf', 152),
+    ('weather_sans', 'barlow-condensed', 'BarlowCondensed-Light.ttf', 160),
 )
 
 
@@ -70,18 +72,22 @@ def measure_glyphs(font, size):
     return measured
 
 
-def clock_metrics(measured):
+def text_metrics(measured, text):
     glyphs = {item[0]: item for item in measured}
+    x = 0
+    left, top, right, bottom = 10000, 10000, -1, -1
+    for char in text:
+        _, advance, gx, gy, gb, bitmap = glyphs[char]
+        if bitmap is not None:
+            left, top = min(left, x + gx), min(top, gy)
+            right, bottom = max(right, x + gx + bitmap.width), max(bottom, gb)
+        x += advance
+    return {'advance': x, 'ink_width': right - left, 'ink_height': bottom - top}
+
+
+def clock_metrics(measured):
     def bounds(text):
-        x = 0
-        left, top, right, bottom = 10000, 10000, -1, -1
-        for char in text:
-            _, advance, gx, gy, gb, bitmap = glyphs[char]
-            if bitmap is not None:
-                left, top = min(left, x + gx), min(top, gy)
-                right, bottom = max(right, x + gx + bitmap.width), max(bottom, gb)
-            x += advance
-        return {'advance': x, 'ink_width': right - left, 'ink_height': bottom - top}
+        return text_metrics(measured, text)
     clocks = [f'{hour:02}:{minute:02}' for hour in range(24) for minute in range(60)]
     maximum = max(clocks, key=lambda value: bounds(value)['advance'])
     assert bounds(maximum)['advance'] <= 408, (maximum, bounds(maximum))
@@ -115,6 +121,14 @@ def generate(name, family, filename, size):
               'glyphs': len(measured), 'verified_ink_pixels': ink_pixels, 'bytes': len(data)}
     if name.endswith('_clock'):
         report['clock_metrics'] = clock_metrics(measured)
+    if name.startswith('weather_'):
+        report['temperature_metrics'] = {
+            text: text_metrics(measured, text)
+            for text in ('20', '-12', '-100', '-999', '20°', '-12°', '-999°')
+        }
+        widest = max((str(value) for value in range(-999, 1000)),
+                     key=lambda text: text_metrics(measured, text)['advance'])
+        report['widest_temperature'] = {widest: text_metrics(measured, widest)}
     print(json.dumps(report, ensure_ascii=True))
 
 
