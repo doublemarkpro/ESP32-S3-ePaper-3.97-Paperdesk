@@ -41,6 +41,14 @@
 
 本工程使用本机安装的 Espressif ESP-IDF 6.0.2 工具链及其组件，未将整个SDK复制进工程。SDK及各组件的授权声明以对应上游文件为准：<https://github.com/espressif/esp-idf>。
 
+## python-garminconnect与佳明国区接口
+
+佳明首次授权工具使用 [cyberjunky/python-garminconnect](https://github.com/cyberjunky/python-garminconnect)，固定提交为 `3eee7a4db6c2242967aae1780b8839599ea7dcbb`（上游版本0.3.20）；安装入口记录于 [tools/garmin-requirements.txt](tools/garmin-requirements.txt)。该库在电脑首次或重新授权时运行，不打包为设备上的Python运行时。
+
+`tools/garmin_probe.py`、`firmware/main/garmin_probe.cpp` 与相关解析代码参考该提交的国区域名选择、DI令牌交换／续期、应用请求头及只读健康和运动接口。上游由Ron Klinkien提供，Copyright (c) 2020–2026 Ron Klinkien，按MIT许可发布；完整许可文本随工程保存在 [assets/licenses/python-garminconnect.txt](assets/licenses/python-garminconnect.txt)。电脑环境的传递依赖通过安装工具取得，各自许可证以对应软件包为准。
+
+此库和本工程使用非官方Garmin Connect接口，不代表Garmin认可或保证兼容。Garmin、Garmin Connect及Body Battery等名称属于相应权利人；本工程没有打包Garmin标志或官方界面素材。佳明文档预览使用合成数据，真实账号授权和健康数据不随源码发布。
+
 ## 天气图标
 
 天气图形由本工程的几何绘图代码生成。和风天气返回的图标代码用于选择相应天气含义；未将图标服务的字体或SVG文件打包到固件中。对应生成工具与固件图标数据随源码保存。

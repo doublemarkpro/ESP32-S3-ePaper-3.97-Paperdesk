@@ -5,6 +5,7 @@
 #include "calendar.h"
 #include "gallery.h"
 #include "gallery_image.h"
+#include "garmin.h"
 #include "esp_log.h"
 #include <algorithm>
 #include <climits>
@@ -375,6 +376,111 @@ void draw_gallery(const AppData& a) {
     std::string hint=gallery.busy?"正在换画 · 请稍候":!a.connected?"离线留存 · 长按设置":gallery.cached?"留存画作 · 短按换画":"短按换画 · 长按设置";
     in_box(24,768,432,27,hint,20);
 }
+std::string brief_value(int value) { return value<0?"--":std::to_string(value); }
+std::string brief_date(const std::string& date) {
+    if(date.size()!=10||date[4]!='-'||date[7]!='-')return "日期未知";
+    for(size_t i=0;i<date.size();++i)if(i!=4&&i!=7&&(date[i]<'0'||date[i]>'9'))return "日期未知";
+    std::string out=date;out[4]=out[7]='.';return out;
+}
+void brief_metric(int x,int w,const std::string& title,int value,const char* unit) {
+    in_box(x,550,w,28,title,20);
+    std::string number=brief_value(value);int size=AValue;
+    int span=width(number,size)+4+width(unit,20);
+    if(span>w){size=32;span=width(number,size)+4+width(unit,20);}
+    number_unit(x+(w-span)/2,610,span,number,unit,size,false,20);
+}
+void draw_garmin(const AppData& a,time_t now) {
+    auto g=paperdesk_garmin::snapshot();
+    label(32,34,"GARMIN",20);
+    right(448,34,g.ready?brief_date(g.date):timestamp(now,"%Y.%m.%d"),20,220);
+    label(32,77,"身体与运动",32,280);
+    bool old_day=g.ready&&g.date!=timestamp(now,"%Y-%m-%d");
+    bool cached=g.cached||!a.connected||old_day;
+    if(g.busy)right(448,88,"更新中",20,120);
+    else if(cached&&g.ready)right(448,88,"留存数据",20,120);
+    fill(32,123,416,1);
+    if(!g.ready){
+        // The empty state has no fabricated metrics or progress bars.
+        round_box(187,231,102,56,8,2);fill(289,249,7,20);
+        fill(198,243,16,32);fill(220,243,16,32);fill(242,243,16,32);
+        in_box(32,341,416,50,g.busy?"正在准备身体简报":g.configured?"暂未取得身体数据":"连接你的佳明",32);
+        centered_lines(32,424,416,70,g.configured?"读取已同步到佳明云端的数据": "首次在电脑完成账号授权",24);
+        centered_lines(32,534,416,70,g.status.empty()?"授权后由设备直接联网更新":g.status,20);
+        fill(32,754,416,1);in_box(32,768,416,27,"短按同步 · 长按设置",20);return;
+    }
+
+    label(32,151,"身体电量",24,236);
+    label(296,153,old_day?"睡眠记录":"昨夜睡眠",20,152);
+    in_box(32,196,232,112,brief_value(g.body_battery),WeatherSerif,true);
+    if(g.body_battery>=0)progress(32,327,224,8,g.body_battery);
+    else {fill(32,331,82,1);fill(174,331,82,1);}
+    fill(276,150,1,188);
+    std::string sleep="--:--";
+    if(g.sleep_seconds>=0){char s[24];snprintf(s,sizeof s,"%d:%02d",g.sleep_seconds/3600,(g.sleep_seconds/60)%60);sleep=s;}
+    int sleep_font=width(sleep,AValue)<=152?AValue:32;
+    in_box(296,210,152,66,sleep,sleep_font);
+    in_box(296,283,152,26,"小时 : 分钟",20);
+    in_box(296,321,152,26,"评分 "+brief_value(g.sleep_score),20);
+    fill(32,371,416,1);
+
+    label(32,396,old_day?"当日步数":"今日步数",24,180);
+    right(448,400,g.step_goal>0?"目标 "+std::to_string(g.step_goal):"目标 --",20,220);
+    std::string steps=brief_value(g.steps);
+    int step_font=width(steps,ALarge)<=416?ALarge:width(steps,AValue)<=416?AValue:32;
+    in_box(32,442,416,69,steps,step_font,true);
+    if(g.steps>=0&&g.step_goal>0){
+        int progress_value=int(std::clamp(100.0*g.steps/g.step_goal,0.0,100.0));
+        progress(32,527,416,6,progress_value);
+    }else fill(32,530,416,1);
+
+    brief_metric(32,132,"静息心率",g.resting_hr,"bpm");
+    brief_metric(174,132,"平均压力",g.stress,"/100");
+    brief_metric(316,132,"夜间 HRV",g.hrv,"ms");
+    fill(32,659,416,1);
+
+    bool run=g.activity_type=="running"||g.activity_type=="trail_running"||g.activity_type=="treadmill_running"||g.activity_type=="track_running";
+    std::string activity=run?"最近跑步":g.activity_type=="cycling"||g.activity_type=="indoor_cycling"?"最近骑行":g.activity_type=="lap_swimming"||g.activity_type=="open_water_swimming"?"最近游泳":"最近运动";
+    label(32,669,activity,20,200);
+    if(!g.activity_date.empty())right(448,669,brief_date(g.activity_date.substr(0,10)),20,220);
+    if(g.activity_distance_m>=0&&g.activity_distance_m<1e9&&std::isfinite(g.activity_distance_m)){
+        char distance[32];double km=g.activity_distance_m/1000.0;
+        snprintf(distance,sizeof distance,km>=100?"%.1f":"%.2f",km);
+        number_unit(32,725,222,distance,"km",AValue,false,20);
+    }else number_unit(32,725,222,"--","km",AValue,false,20);
+    std::string duration="用时 --";
+    if(g.activity_duration_s>=0&&std::isfinite(g.activity_duration_s)&&g.activity_duration_s<36000000){
+        long seconds=std::lround(g.activity_duration_s);char value[40];
+        if(seconds>=3600)snprintf(value,sizeof value,"用时 %ld:%02ld:%02ld",seconds/3600,(seconds/60)%60,seconds%60);
+        else snprintf(value,sizeof value,"用时 %ld:%02ld",seconds/60,seconds%60);
+        duration=value;
+    }
+    right(448,708,duration,20,180);
+    std::string secondary="已同步的运动";
+    if(run&&g.activity_duration_s>0&&g.activity_distance_m>0&&std::isfinite(g.activity_duration_s)&&std::isfinite(g.activity_distance_m)){
+        double seconds_km=g.activity_duration_s*1000/g.activity_distance_m;
+        if(seconds_km<6000){int pace=int(std::lround(seconds_km));char value[40];snprintf(value,sizeof value,"配速 %d'%02d\"/km",pace/60,pace%60);secondary=value;}
+        else secondary="配速 --";
+    }else if(g.activity_distance_m<0&&g.activity_duration_s<0)secondary="暂无运动记录";
+    right(448,737,secondary,20,205);
+    fill(32,762,416,1);
+    std::string state_hint;
+    if(!a.connected)state_hint="离线";
+    else if(g.status.find("授权")!=std::string::npos)state_hint="需重新授权";
+    else if(g.status.find("受限")!=std::string::npos)state_hint="请求受限";
+    else if(g.status.find("失败")!=std::string::npos)state_hint="稍后重试";
+    else if(g.busy)state_hint="更新中";
+    else if(cached||g.status.find("部分")!=std::string::npos)state_hint="留存数据";
+    else state_hint="短按同步";
+    std::string sync;
+    if(g.last_sync>=1704067200)sync="云端 "+timestamp(g.last_sync,"%m/%d %H:%M");
+    else sync="读取 "+timestamp(g.fetched_at,"%H:%M")+" · 云端时间未知";
+    std::string suffix=" · "+state_hint;
+    // Preserve the actionable state instead of ellipsizing it away when the
+    // cloud supplied no sync timestamp; retrieval time is secondary here.
+    if(width(sync+suffix,20)>416)sync="云端同步时间未知";
+    sync+=suffix;
+    in_box(32,770,416,22,sync,20);
+}
 } // namespace
 
 void draw_screen(const View& view,bool full) {
@@ -394,7 +500,7 @@ void draw_screen(const View& view,bool full) {
     bool stale=!a.connected||!a.gateway_error.empty()||(clock_ok&&a.gateway_updated>0&&now-a.gateway_updated>900);
     bool weather_stale=stale||cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(weather,"stale"));
     bool quota_stale=stale||cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(codex,"stale"));
-    const char* pages[]={"桌面总览","天气","月历","画廊"};
+    const char* pages[]={"桌面总览","天气","月历","画廊","佳明简报"};
     if(view.page==0){
         draw_home(a,weather,codex,windows,weather_ok,quota_ok,weather_stale,quota_stale,now);
     }else if(view.page==1){
@@ -403,6 +509,8 @@ void draw_screen(const View& view,bool full) {
         draw_calendar(view,now);
     }else if(view.page==GalleryPage){
         draw_gallery(a);
+    }else if(view.page==GarminPage){
+        draw_garmin(a,now);
     }else{
         label(32,36,view.details?"网络与配网":"设置",32);
         if(view.details){
@@ -416,7 +524,7 @@ void draw_screen(const View& view,bool full) {
             const char* labels[]={"网络与手机设置","首页风格","天气风格","开机默认页面","自动轮播","夜间暂停轮播","立即同步数据"};
             std::string values[]={"查看",a.config.home_style==1?"编辑式微衬线":"精密桌面钟",a.config.weather_style==1?"温差观测":"天气日报",pages[std::clamp(a.config.default_page,0,ContentPageCount-1)],a.config.rotation_minutes?"5分钟":"关闭",a.config.night?"开启":"关闭","请求"};
             for(int i=0;i<7;i++){int y=130+i*62;if(view.selection==i)round_box(24,y-13,432,56,8,2);label(40,y,labels[i],24,270);right(432,y+3,values[i],20,160);}
-            label(32,580,"管理码："+a.config.admin_token,24);label(32,628,"http://"+a.ip,20);label(32,680,"纸间 Paperdesk 0.6.0",20);label(32,751,"拨动选择 · 短按修改 · 长按回首页",20);
+            label(32,580,"管理码："+a.config.admin_token,24);label(32,628,"http://"+a.ip,20);label(32,680,"纸间 Paperdesk 0.7.0",20);label(32,751,"拨动选择 · 短按修改 · 长按回首页",20);
         }
     }
     cJSON_Delete(snapshot);epaper_timed_out=false;

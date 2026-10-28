@@ -32,7 +32,7 @@ extern std::mutex app_mutex;
 extern std::atomic<bool> dirty, force_sync, full_refresh, weather_full_refresh, calendar_full_refresh;
 extern QueueHandle_t button_queue;
 enum Key { Up=1, Press=2, Down=3, Back=4 };
-enum Page { HomePage=0, WeatherPage=1, CalendarPage=2, GalleryPage=3, SettingsPage=4 };
+enum Page { HomePage=0, WeatherPage=1, CalendarPage=2, GalleryPage=3, GarminPage=4, SettingsPage=5 };
 constexpr int ContentPageCount=SettingsPage;
 struct View { int page=0, selection=0, mode=0; bool details=false; };
 void board_init();

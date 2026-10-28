@@ -2,6 +2,7 @@
 #include "gallery.h"
 #include "gallery_image.h"
 #include "gallery_catalog.h"
+#include "garmin.h"
 #include <fstream>
 #include <algorithm>
 #include <cstdio>
@@ -15,6 +16,10 @@ static std::string output;
 namespace paperdesk_gallery {
 Snapshot preview;
 Snapshot snapshot(bool){return preview;}
+}
+namespace paperdesk_garmin {
+Snapshot preview;
+Snapshot snapshot(){return preview;}
 }
 static time_t at_date(int year,int month,int day){tm t={};t.tm_year=year-1900;t.tm_mon=month-1;t.tm_mday=day;t.tm_hour=11;t.tm_min=48;t.tm_isdst=-1;return mktime(&t);}
 const char* json_string(const cJSON*o,const char*k,const char*fallback){auto v=cJSON_GetObjectItemCaseSensitive(o,k);return cJSON_IsString(v)?v->valuestring:fallback;}
@@ -37,6 +42,24 @@ int main(int argc,char**argv){
         }
     }
     for(int style=0;style<2;style++){app.config.home_style=style;View v;output=std::string(argv[1])+"/home-style-"+(style?"b":"a")+".pbm";draw_screen(v,true);}
+    {View v;v.page=GarminPage;auto& g=paperdesk_garmin::preview;
+        auto render=[&](const char* name){output=std::string(argv[1])+"/garmin-"+name+".pbm";draw_screen(v,true);};
+        render("unconfigured");g.configured=true;g.busy=true;g.status="正在读取云端数据";render("loading");
+        g.ready=true;g.busy=false;g.date="2026-10-28";g.fetched_at=preview_now;g.last_sync=preview_now-600;
+        g.steps=6842;g.step_goal=10000;g.body_battery=76;g.resting_hr=52;g.stress=24;g.hrv=68;g.sleep_seconds=7*3600+42*60;g.sleep_score=84;
+        g.activity_type="running";g.activity_date="2026-10-27";g.activity_distance_m=5200;g.activity_duration_s=28*60+12;
+        g.status="已直连佳明更新";render("brief");
+        g.cached=true;g.status="佳明授权失效，请重新授权";render("reauthorize");
+        time_t known_sync=g.last_sync;g.last_sync=0;render("reauthorize-unknown-sync");g.last_sync=known_sync;
+        g.status="佳明请求受限，30分钟后重试";render("rate-limited");
+        g.status="部分更新失败，30分钟后重试";render("retry");
+        g.status="部分指标待同步 · 保留可用数据";render("partial");
+        g.cached=true;g.date="2026-10-27";g.last_sync-=86400;app.connected=false;render("offline");app.connected=true;
+        g={};g.configured=g.ready=true;g.date="2026-10-28";g.fetched_at=preview_now;g.steps=0;render("missing");
+        g.body_battery=100;g.steps=123456;g.step_goal=100000;g.resting_hr=120;g.stress=100;g.hrv=180;g.sleep_seconds=12*3600+59*60;g.sleep_score=100;g.last_sync=preview_now;
+        g.activity_type="trail_running";g.activity_date="2026-10-28";g.activity_distance_m=123456;g.activity_duration_s=13*3600+42*60+12;render("edge");
+        g={};
+    }
     {View v;v.page=GalleryPage;auto& g=paperdesk_gallery::preview;g.count=paperdesk_gallery::artwork_count;
         output=std::string(argv[1])+"/gallery-empty.pbm";draw_screen(v,true);
         g.busy=true;g.status="正在直连博物馆取画…";output=std::string(argv[1])+"/gallery-loading.pbm";draw_screen(v,true);

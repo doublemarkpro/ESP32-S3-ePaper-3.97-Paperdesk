@@ -1,6 +1,8 @@
 #include "paperdesk.h"
 #include "gallery.h"
 #include "gallery_image.h"
+#include "garmin_probe.h"
+#include "garmin.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "esp_wifi.h"
@@ -34,8 +36,33 @@ void config_load(){
 static bool auth(httpd_req_t*r){size_t n=httpd_req_get_hdr_value_len(r,"X-Paperdesk-Token");char value[100]={};if(n<sizeof value)httpd_req_get_hdr_value_str(r,"X-Paperdesk-Token",value,sizeof value);std::lock_guard<std::mutex> guard(app_mutex);return !app.config.admin_token.empty()&&app.config.admin_token==value;}
 static esp_err_t json_reply(httpd_req_t*r,const std::string&s){httpd_resp_set_type(r,"application/json; charset=utf-8");httpd_resp_set_hdr(r,"Cache-Control","no-store");return httpd_resp_send(r,s.c_str(),s.size());}
 static esp_err_t denied(httpd_req_t*r){httpd_resp_set_status(r,"401 Unauthorized");return json_reply(r,"{\"error\":\"管理码不正确，请查看设备设置页\"}");}
+static esp_err_t garmin_probe_handler(httpd_req_t*r){
+    if(!auth(r))return denied(r);
+    if(r->method==HTTP_GET){
+        char* result=garmin_probe_result_json();
+        std::string body=result?result:"{}";cJSON_free(result);
+        return json_reply(r,body);
+    }
+    if(r->content_len<=0||r->content_len>32768){
+        httpd_resp_set_status(r,"400 Bad Request");return json_reply(r,"{\"error\":\"Invalid request size\"}");
+    }
+    std::string body(r->content_len,'\0');int total=0;
+    while(total<r->content_len){int n=httpd_req_recv(r,body.data()+total,r->content_len-total);if(n<=0)return ESP_FAIL;total+=n;}
+    auto parsed=cJSON_Parse(body.c_str());
+    if(!cJSON_IsObject(parsed)){cJSON_Delete(parsed);httpd_resp_set_status(r,"400 Bad Request");return json_reply(r,"{\"error\":\"Invalid JSON\"}");}
+    bool save=std::string(json_string(parsed,"action"))=="save";cJSON_Delete(parsed);
+    bool ok=save?garmin_probe_save():garmin_probe_begin(body.data(),body.size());
+    if(!ok){httpd_resp_set_status(r,"409 Conflict");return json_reply(r,"{\"error\":\"Probe busy, unavailable or request invalid\"}");}
+    httpd_resp_set_status(r,save?"200 OK":"202 Accepted");return json_reply(r,"{\"ok\":true}");
+}
+static esp_err_t garmin_handler(httpd_req_t*r){
+    if(!auth(r))return denied(r);
+    if(r->method==HTTP_POST){paperdesk_garmin::request_sync();return json_reply(r,"{\"ok\":true}");}
+    char* result=paperdesk_garmin::status_json();
+    std::string body=result?result:"{}";cJSON_free(result);return json_reply(r,body);
+}
 static esp_err_t page_handler(httpd_req_t*r){httpd_resp_set_type(r,"text/html; charset=utf-8");httpd_resp_set_hdr(r,"Cache-Control","no-store");httpd_resp_set_hdr(r,"Content-Security-Policy","default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'");return httpd_resp_send(r,(const char*)web_start,web_end-web_start);}
-static esp_err_t state_handler(httpd_req_t*r){auto j=cJSON_CreateObject();{std::lock_guard<std::mutex> guard(app_mutex);cJSON_AddStringToObject(j,"ip",app.ip.c_str());cJSON_AddBoolToObject(j,"connected",app.connected);cJSON_AddBoolToObject(j,"sensor_ok",app.env_ok);if(app.env_ok){cJSON_AddNumberToObject(j,"temperature",app.temperature);cJSON_AddNumberToObject(j,"humidity",app.humidity);}cJSON_AddStringToObject(j,"gateway_status",app.gateway_error.empty()?"已同步":app.gateway_error.c_str());cJSON_AddStringToObject(j,"version","0.6.0");cJSON_AddNumberToObject(j,"home_style",app.config.home_style);cJSON_AddNumberToObject(j,"weather_style",app.config.weather_style);}char*p=cJSON_PrintUnformatted(j);std::string s=p;cJSON_free(p);cJSON_Delete(j);return json_reply(r,s);}
+static esp_err_t state_handler(httpd_req_t*r){auto j=cJSON_CreateObject();{std::lock_guard<std::mutex> guard(app_mutex);cJSON_AddStringToObject(j,"ip",app.ip.c_str());cJSON_AddBoolToObject(j,"connected",app.connected);cJSON_AddBoolToObject(j,"sensor_ok",app.env_ok);if(app.env_ok){cJSON_AddNumberToObject(j,"temperature",app.temperature);cJSON_AddNumberToObject(j,"humidity",app.humidity);}cJSON_AddStringToObject(j,"gateway_status",app.gateway_error.empty()?"已同步":app.gateway_error.c_str());cJSON_AddStringToObject(j,"version","0.7.0");cJSON_AddNumberToObject(j,"home_style",app.config.home_style);cJSON_AddNumberToObject(j,"weather_style",app.config.weather_style);}char*p=cJSON_PrintUnformatted(j);std::string s=p;cJSON_free(p);cJSON_Delete(j);return json_reply(r,s);}
 static esp_err_t gallery_handler(httpd_req_t*r){
     if(!auth(r))return denied(r);
     if(r->method==HTTP_POST){paperdesk_gallery::request_next();return json_reply(r,"{\"ok\":true}");}
@@ -96,7 +123,11 @@ void network_start(){
     app.ap_name=name;app.ap_password=password;app.ap_active=true;wifi_config_t ap={};strncpy((char*)ap.ap.ssid,name,sizeof ap.ap.ssid-1);strncpy((char*)ap.ap.password,password,sizeof ap.ap.password-1);ap.ap.ssid_len=strlen(name);ap.ap.channel=6;ap.ap.max_connection=3;ap.ap.authmode=WIFI_AUTH_WPA2_PSK;ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP,&ap));
     if(!app.config.ssid.empty()){wifi_config_t sta={};memcpy(sta.sta.ssid,app.config.ssid.data(),app.config.ssid.size());memcpy(sta.sta.password,app.config.wifi_password.data(),app.config.wifi_password.size());ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA,&sta));}
     ESP_ERROR_CHECK(esp_wifi_start());esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);esp_sntp_setservername(0,"ntp.aliyun.com");esp_sntp_init();
-    httpd_config_t config=HTTPD_DEFAULT_CONFIG();config.stack_size=8192;config.max_uri_handlers=8;ESP_ERROR_CHECK(httpd_start(&server,&config));
+    httpd_config_t config=HTTPD_DEFAULT_CONFIG();config.stack_size=8192;config.max_uri_handlers=12;ESP_ERROR_CHECK(httpd_start(&server,&config));
     const httpd_uri_t uris[]={{.uri="/",.method=HTTP_GET,.handler=page_handler,.user_ctx=nullptr},{.uri="/api/state",.method=HTTP_GET,.handler=state_handler,.user_ctx=nullptr},{.uri="/api/config",.method=HTTP_GET,.handler=config_handler,.user_ctx=nullptr},{.uri="/api/config",.method=HTTP_POST,.handler=config_handler,.user_ctx=nullptr},{.uri="/api/gallery",.method=HTTP_GET,.handler=gallery_handler,.user_ctx=nullptr},{.uri="/api/gallery/next",.method=HTTP_POST,.handler=gallery_handler,.user_ctx=nullptr},{.uri="/api/gallery/image",.method=HTTP_GET,.handler=gallery_image_handler,.user_ctx=nullptr}};for(auto &u:uris)ESP_ERROR_CHECK(httpd_register_uri_handler(server,&u));
+    const httpd_uri_t probe_uris[]={{.uri="/api/garmin-probe",.method=HTTP_GET,.handler=garmin_probe_handler,.user_ctx=nullptr},{.uri="/api/garmin-probe",.method=HTTP_POST,.handler=garmin_probe_handler,.user_ctx=nullptr}};
+    for(auto &u:probe_uris)ESP_ERROR_CHECK(httpd_register_uri_handler(server,&u));
+    const httpd_uri_t garmin_uris[]={{.uri="/api/garmin",.method=HTTP_GET,.handler=garmin_handler,.user_ctx=nullptr},{.uri="/api/garmin/sync",.method=HTTP_POST,.handler=garmin_handler,.user_ctx=nullptr}};
+    for(auto &u:garmin_uris)ESP_ERROR_CHECK(httpd_register_uri_handler(server,&u));
     xTaskCreate(network_task,"network",12288,nullptr,3,nullptr);
 }

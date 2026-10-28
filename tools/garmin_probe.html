@@ -1,0 +1,20 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>纸间 · 佳明国区验证</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f2f5f1;color:#243b32;font:16px/1.7 system-ui,"Microsoft YaHei",sans-serif}main{max-width:760px;margin:48px auto;padding:0 24px}small{letter-spacing:.12em}h1{font-size:30px;margin:4px 0 16px}section{background:white;border:1px solid #dce4dc;border-radius:16px;padding:26px;margin:20px 0}p{margin:8px 0 18px}.hint{font-size:14px;color:#5b6e64}label{display:block;margin:14px 0 4px}input{font:inherit;width:100%;padding:10px 12px;border:1px solid #b9cabb;border-radius:8px}button{font:inherit;background:#2d5940;color:white;border:0;border-radius:8px;padding:10px 20px;margin-top:20px;cursor:pointer}button:disabled{opacity:.5;cursor:wait}#mfaForm{border-top:1px solid #dce4dc;margin-top:20px;padding-top:10px}[hidden]{display:none!important}li{padding:5px 0}pre{white-space:pre-wrap;font:14px/1.6 system-ui}#status{font-weight:600}.ok{color:#24643c}.bad{color:#9d4532}
+</style><main><small>PAPERDESK · GARMIN CHINA</small><h1>佳明国区 · 连接验证</h1>
+<p>首次授权在这台电脑完成。验证通过后，继续测试墨水屏独立联网。</p>
+<section><form id="loginForm"><label for="email">佳明国区账号（手机号或邮箱）</label><input id="email" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+<label for="password">账号密码</label><input id="password" type="password" autocomplete="current-password" required>
+<p class="hint">本页使用佳明账号密码登录；短信验证码如有需要，会在登录后单独输入。若你平时仅用短信免密登录，请先告诉助手，不要将验证码填入密码框。</p>
+<button id="loginButton">登录并验证</button></form>
+<p class="hint">这是本机验证页，仅监听 127.0.0.1。密码和验证码仅用于本次佳明授权，不写入文件或聊天；授权令牌保存在工程的私有本地目录中。不会修改运动记录。</p>
+<form id="mfaForm" hidden><label for="code">佳明验证码</label><input id="code" inputmode="numeric" autocomplete="one-time-code" required><button>提交验证码</button></form></section>
+<section><div id="status">等待登录</div><ol id="checks"></ol><div id="error" class="bad"></div><pre id="metrics"></pre></section></main>
+<script>
+const csrf='__CSRF__';const $=id=>document.getElementById(id);
+async function post(path,data){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Probe-CSRF':csrf},body:JSON.stringify(data)});if(!r.ok)throw Error('提交未成功，请检查输入或等待当前验证结束。');}
+$('loginForm').onsubmit=async e=>{e.preventDefault();$('loginButton').disabled=true;const data={email:$('email').value,password:$('password').value};$('password').value='';try{await post('/api/login',data);$('email').value='';}catch(e){$('error').textContent=e.message;$('loginButton').disabled=false;}finally{data.password='';data.email='';}};
+$('mfaForm').onsubmit=async e=>{e.preventDefault();const code=$('code').value;$('code').value='';try{await post('/api/mfa',{code});$('mfaForm').hidden=true;}catch(e){$('error').textContent=e.message;}};
+async function poll(){try{const s=await(await fetch('/api/status',{cache:'no-store'})).json();$('status').textContent=s.message;$('loginButton').disabled=['running','mfa','passed'].includes(s.phase);$('loginForm').hidden=['passed','mfa'].includes(s.phase);$('mfaForm').hidden=s.phase!=='mfa';document.title=(s.phase==='mfa'?'请输入验证码 · ':'')+'纸间 · 佳明国区验证';$('error').textContent=s.error||'';$('checks').replaceChildren(...s.checks.map(x=>{const li=document.createElement('li');li.textContent=(x.ok?'✓ ':'· ')+x.name+(x.http?' · HTTP '+x.http:'');li.className=x.ok?'ok':'bad';return li;}));const m=s.snapshot||{};const lines=[];if(m.steps!=null)lines.push('今日步数：'+m.steps);if(m.sleep_seconds!=null)lines.push('昨夜睡眠：'+Math.floor(m.sleep_seconds/3600)+' 小时 '+Math.floor(m.sleep_seconds%3600/60)+' 分钟');if(m.sleep_score!=null)lines.push('睡眠评分：'+m.sleep_score);if(m.body_battery_latest!=null)lines.push('身体电量：'+m.body_battery_latest);if(m.resting_heart_rate!=null)lines.push('静息心率：'+m.resting_heart_rate);$('metrics').textContent=lines.join('\n');}catch(e){$('status').textContent='本机验证工具连接中断，请告知助手。';}setTimeout(poll,1800);}poll();
+</script></html>

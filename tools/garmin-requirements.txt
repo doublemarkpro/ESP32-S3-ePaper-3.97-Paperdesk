@@ -1,0 +1,2 @@
+# Pin the inspected China-domain and DI refresh implementation.
+garminconnect @ git+https://github.com/cyberjunky/python-garminconnect.git@3eee7a4db6c2242967aae1780b8839599ea7dcbb

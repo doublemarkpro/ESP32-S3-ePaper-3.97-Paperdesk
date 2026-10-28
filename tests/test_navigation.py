@@ -30,14 +30,16 @@ def braced_statement(source, marker):
 HARNESS = r'''
 #include "paperdesk.h"
 #include "gallery.h"
+#include "garmin.h"
 #include <cassert>
 #include <cstdint>
 #include <iostream>
 AppData app;std::mutex app_mutex;
 std::atomic<bool> dirty{false},force_sync{false},full_refresh{false},weather_full_refresh{false},calendar_full_refresh{false};
-int saves=0,requests=0;
+int saves=0,requests=0,garmin_requests=0;
 void config_save(){++saves;}
 namespace paperdesk_gallery {std::atomic<bool> full_refresh{false};void request_next(){++requests;}}
+namespace paperdesk_garmin {void request_sync(){++garmin_requests;}}
 PRODUCTION_HANDLER
 void rotate(View&view,bool enabled=true,bool quiet=false,int64_t elapsed=300000000){
     Config cfg;cfg.rotation_minutes=enabled?5:0;int64_t now=elapsed,last_interaction=0;
@@ -70,6 +72,8 @@ int main(int argc,char**argv){
     }else if(test=="page_actions"){
         View gallery{GalleryPage};handle_key(gallery,Press);
         assert(requests==1&&!force_sync&&gallery.page==GalleryPage);
+        View garmin{GarminPage};handle_key(garmin,Press);
+        assert(garmin_requests==1&&!force_sync&&garmin.page==GarminPage);
         View calendar{CalendarPage};handle_key(calendar,Press);assert(calendar.selection==1&&calendar_full_refresh);
         handle_key(calendar,Press);assert(calendar.selection==0&&!force_sync);
         View weather{WeatherPage};handle_key(weather,Press);assert(force_sync);
